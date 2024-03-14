@@ -1,7 +1,7 @@
-<div style="background-color: #ffeeba; border-color: #ffc107; border-left-width: 5px; border-left-style: solid; padding: 10px;">
-    <strong>Warning:</strong> <span style="color: red;">Shiko you are not allowed to edit anything in this repo focus on your tasks thank you</span>
-</div>
 
+```diff
+- Warning: Shiko you are not allowed to edit anything in this repo focus on your tasks thank you.
+```
 
 # Perception
 
