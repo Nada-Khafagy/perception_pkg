@@ -15,6 +15,9 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   geometry_msgs
   sensor_msgs
+  cv_bridge
+  image_transport
+  darknet_ros
 
 )
 
@@ -110,7 +113,14 @@ add_message_files(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES perception_pkg
-  CATKIN_DEPENDS roscpp rospy std_msgs message_runtime
+  CATKIN_DEPENDS 
+  roscpp 
+  rospy 
+  std_msgs 
+  message_runtime
+  cv_bridge
+  image_transport
+  darknet_ros 
 #  DEPENDS system_lib
 )
 
