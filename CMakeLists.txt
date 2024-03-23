@@ -17,7 +17,6 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   cv_bridge
   image_transport
-  darknet_ros
 
 )
 
@@ -120,7 +119,6 @@ catkin_package(
   message_runtime
   cv_bridge
   image_transport
-  darknet_ros 
 #  DEPENDS system_lib
 )
 
