@@ -68,7 +68,18 @@ This milestone will be testing mainly! and seeing how the integration of image p
 
 ## Testing the package
 - make sure you have CV2 and download and the other dependancies
-- you can run 
+- you can run the following if you want the condidence to be 0.8 (default is 0.5 but then you will see how bad the model is T-T )
+```bash
+roslaunch perception_pkg object_detection.launch confidence_threshold:=0.8
+```
+- for the submodule to run you need to clone this repo then add the submodule
+```bash
+git clone --recurse-submodules https://github.com/ultralytics/yolov5
+cd yolov5_ros/src/yolov5
+pip install -r requirements.txt
+```
+- then don't forget to run the package (I hope it works)
+
 
 ## Next Steps:
 - get new data with different scene settings and lightings and anotate them.
