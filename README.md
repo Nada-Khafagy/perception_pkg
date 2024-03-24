@@ -75,7 +75,7 @@ roslaunch perception_pkg object_detection.launch confidence_threshold:=0.8
 - for the submodule to run you need to clone this repo then add the submodule
 ```bash
 git clone --recurse-submodules https://github.com/ultralytics/yolov5
-cd yolov5_ros/src/yolov5
+cd src/yolov5
 pip install -r requirements.txt
 ```
 - then don't forget to build the package (I hope it works)
