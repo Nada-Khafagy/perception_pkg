@@ -57,9 +57,11 @@ This milestone will be testing mainly! and seeing how the integration of image p
 
 ### training
 - used Yolov5m 
-    - mAP = 
+    - mAP (0.5-0.95) = 0.68185 
     - confusion matrix: acceptable but not the best
 - Yolov8n
+    - mAP (0.5-0.95) =  0.76426
+    - has a better confusion matrix
     - trained it but haven't tested it yet
 ### integration with ros
 - made a simple wrapper lots of refrences are listed

@@ -1,0 +1,20 @@
+names:
+- aruco marker sign
+- bike
+- building
+- car
+- person
+- plastic lane barrier
+- traffic cone
+- traffic sign
+- tree
+nc: 9
+roboflow:
+  license: CC BY 4.0
+  project: city-h2uz7
+  url: https://universe.roboflow.com/autocomp/city-h2uz7/dataset/1
+  version: 1
+  workspace: autocomp
+test: /city-1/test/images
+train: /city-1/train/images
+val: /city-1/valid/images
