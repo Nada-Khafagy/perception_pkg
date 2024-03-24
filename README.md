@@ -36,19 +36,43 @@ This milestone will be testing mainly! and seeing how the integration of image p
 <br></br>
 
 # Notes on Object detection
+## Using 
+- straight forward just use the  CvBridge, look at the ROS tut in the refrences
 
 ## Camera specification in Coppeliasim
 - frequency = 20 Hz
-- resolution 1080x720
 - near/far plane = [0.1, 100] (I wanted to capture the sky)
+- perspective angle = 60deg
+- resolution 1080x720
 
 ## Environment 
 - https://drive.google.com/file/d/1Fx4pnt02th4oUcjqRUbAMUMitahHYjym/view?usp=sharing
+
+
+## Yolo
+### Data annotation
+- I am using Roboflow, https://universe.roboflow.com/autocomp/city-h2uz7
+- it is recommended to have 1.5k> per class, rn it is around(800) total
+- the current classes are 9 : aruco marker sign, bike, building, car, person, plastic lane barrier, traffic cone, traffic sign, tree
+
+### training
+- used Yolov5m 
+    - mAP = 
+    - confusion matrix: acceptable but not the best
+- Yolov8n
+    - trained it but haven't tested it yet
+### integration with ros
+- made a simple wrapper lots of refrences are listed
+
+## Testing the package
+- make sure you have CV2 and download and the other dependancies
+- you can run 
 
 ## Next Steps:
 - get new data with different scene settings and lightings and anotate them.
 - analayze the YOLO archetecture --> i found a tutorial where i can build it from scratch i might try that.
 - test using cv2 to detect aruco markers.
+- test yolov7 built on the Darknet framewotrk
 
 
 ## Refrences:
@@ -59,6 +83,8 @@ This milestone will be testing mainly! and seeing how the integration of image p
 - https://github.com/ultralytics/yolov5
 - https://github.com/leggedrobotics/darknet_ros
 - https://github.com/mats-robotics/yolov5_ros
+- https://karpathy.github.io/2019/04/25/recipe/
+
 
 
 

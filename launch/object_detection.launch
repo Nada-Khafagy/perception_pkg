@@ -1,0 +1,6 @@
+<?xml version='1.0'?>
+
+<launch>
+ <!-- Input Arguments -->
+    <arg name="image_topic" default="/camera/rgb/image_raw" />
+</launch>
