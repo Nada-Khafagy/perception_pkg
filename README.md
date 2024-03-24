@@ -79,7 +79,7 @@ cd yolov5_ros/src/yolov5
 pip install -r requirements.txt
 ```
 - then don't forget to build the package (I hope it works)
-
+- also put like an empty folder called include if building caused an issue
 
 ## Next Steps:
 - get new data with different scene settings and lightings and anotate them.
