@@ -36,7 +36,7 @@ This milestone will be testing mainly! and seeing how the integration of image p
 <br></br>
 
 # Notes on Object detection
-## Using 
+## Using CV
 - straight forward just use the  CvBridge, look at the ROS tut in the refrences
 
 ## Camera specification in Coppeliasim
