@@ -51,7 +51,7 @@ This milestone will be testing mainly! and seeing how the integration of image p
 
 ## Yolo
 ### Data annotation
-- I am using Roboflow, https://universe.roboflow.com/autocomp/city-h2uz7
+- I am using Roboflow, https://universe.roboflow.com/autocomp/ccc123iii123ttt123yyy
 - it is recommended to have 1.5k> per class, rn it is around(800) total
 - the current classes are 9 : aruco marker sign, bike, building, car, person, plastic lane barrier, traffic cone, traffic sign, tree
 
