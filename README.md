@@ -78,7 +78,7 @@ git clone --recurse-submodules https://github.com/ultralytics/yolov5
 cd yolov5_ros/src/yolov5
 pip install -r requirements.txt
 ```
-- then don't forget to run the package (I hope it works)
+- then don't forget to build the package (I hope it works)
 
 
 ## Next Steps:
