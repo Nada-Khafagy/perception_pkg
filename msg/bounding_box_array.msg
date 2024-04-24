@@ -1,2 +1,2 @@
 std_msgs/Header Header
-bounding_box[] yolov8_boxes
+bounding_box[] bbs_array

@@ -38,6 +38,7 @@ class ObjectDetector:
         try:
             cv2_img = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
             self.cv2_img = cv2_img
+            self.new_image_received = True
         except CvBridgeError as e:
             rospy.loginfo("Error in converting to cv2 image!")
             rospy.logerr(e)
@@ -46,11 +47,12 @@ class ObjectDetector:
     def run(self):
         rate = rospy.Rate(20)
         while not rospy.is_shutdown():
-            if self.cv2_img is not None: 
+            if self.cv2_img is not None and self.new_image_received: 
+                self.new_image_received = False
                 bbs_msg = bounding_box_array() #bb is bounding box
                 bbs_msg.Header.stamp = rospy.Time.now()
                 bbs_msg.Header.frame_id = 'bounding_boxes'
-                bbs_msg.yolov8_boxes = []
+                bbs_msg.bbs_array = []
                 bounding_boxes = self.model(self.cv2_img).pandas().xyxy[0]
                 box_color = (0, 255, 0)  # Green color
                 text_color = (255, 255, 255)  # White color
@@ -64,20 +66,20 @@ class ObjectDetector:
                         cv2.rectangle(self.cv2_img, (x1, y1), (x2, y2), box_color, thickness=2)
                         label = f"{row['name']} (Confidence: {row['confidence']:.2f})"
                         cv2.putText(self.cv2_img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color, thickness=2)
-                        bb_msg.calss_name = row['name']
+                        bb_msg.class_name = row['name']
                         bb_msg.confidence = row['confidence']
                         bb_msg.xmin = x1
                         bb_msg.ymin = y1
                         bb_msg.xmax = x2
                         bb_msg.ymax = y2
                         
-                        if bb_msg.calss_name != "":
-                            bbs_msg.yolov8_boxes.append(bb_msg)
+                        if bb_msg.class_name != "":
+                            bbs_msg.bbs_array.append(bb_msg)
                             #rospy.loginfo(f"{row['name']} is detected! with confidence {row['confidence']:.2f}")
-                            
-                    self.ros_image = self.bridge.cv2_to_imgmsg(self.cv2_img, 'bgr8')
-                    self.image_pub.publish(self.ros_image)
-                    self.bb_pub.publish(bbs_msg)
+                        self.bb_pub.publish(bbs_msg)   
+                self.ros_image = self.bridge.cv2_to_imgmsg(self.cv2_img, 'bgr8')
+                self.image_pub.publish(self.ros_image)
+                    
             rate.sleep()
 
 

@@ -1,6 +1,5 @@
-string calss_name
+string class_name
 float32 confidence
-int64 xmin
-int64 ymin
-int64 xmax
-int64 ymax
+geometry_msgs/Pose2D centeroid
+float64 size_x
+float64 size_y

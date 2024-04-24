@@ -121,6 +121,7 @@ catkin_package(
   message_runtime
   cv_bridge
   image_transport
+  geometry_msgs
 #  DEPENDS system_lib
 )
 
