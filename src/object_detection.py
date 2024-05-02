@@ -26,7 +26,7 @@ class ObjectDetector:
         self.bb_pub = rospy.Publisher('/bounding_boxes', bounding_box_array, queue_size=20)
         pkg_path = str(FILE.parents[0].parents[0].resolve())
         model_path = pkg_path + rospy.get_param('~model_path')
-        weights_path  = pkg_path + rospy.get_param('~weights_path')
+        weights_path  = pkg_path + rospy.get_param('~weights_path' )
         self.model = torch.hub.load(model_path, 'custom', path= weights_path, source='local') 
         self.conf = rospy.get_param("~confidence_threshold")  # NMS confidence threshold
         self.iou = rospy.get_param("~iou_threshold")  # NMS IoU threshold
@@ -49,16 +49,16 @@ class ObjectDetector:
         while not rospy.is_shutdown():
             if self.cv2_img is not None and self.new_image_received: 
                 self.new_image_received = False
-                bbs_msg = bounding_box_array() #bb is bounding box
-                bbs_msg.Header.stamp = rospy.Time.now()
-                bbs_msg.Header.frame_id = 'bounding_boxes'
-                bbs_msg.bbs_array = []
+                #bbs_msg = bounding_box_array() #bb is bounding box
+                #bbs_msg.Header.stamp = rospy.Time.now()
+                #bbs_msg.Header.frame_id = 'bounding_boxes'
+                #bbs_msg.bbs_array = []
                 bounding_boxes = self.model(self.cv2_img).pandas().xyxy[0]
                 box_color = (0, 255, 0)  # Green color
                 text_color = (255, 255, 255)  # White color
                 if bounding_boxes is not None and not bounding_boxes.empty:
                     for _, row in bounding_boxes.iterrows():
-                        bb_msg = bounding_box()
+                        #bb_msg = bounding_box()
                         if row['confidence'] < self.conf:
                             continue
                         x1, y1, x2, y2 = int(row['xmin']), int(row['ymin']), int(row['xmax']), int(row['ymax'])
@@ -66,17 +66,17 @@ class ObjectDetector:
                         cv2.rectangle(self.cv2_img, (x1, y1), (x2, y2), box_color, thickness=2)
                         label = f"{row['name']} (Confidence: {row['confidence']:.2f})"
                         cv2.putText(self.cv2_img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_DUPLEX, 0.5, text_color, thickness=2)
-                        bb_msg.class_name = row['name']
-                        bb_msg.confidence = row['confidence']
-                        bb_msg.xmin = x1
-                        bb_msg.ymin = y1
-                        bb_msg.xmax = x2
-                        bb_msg.ymax = y2
+                        #bb_msg.class_name = row['name']
+                        #bb_msg.confidence = row['confidence']
+                        #bb_msg.xmin = x1
+                        #bb_msg.ymin = y1
+                        #bb_msg.xmax = x2
+                        #bb_msg.ymax = y2
                         
-                        if bb_msg.class_name != "":
-                            bbs_msg.bbs_array.append(bb_msg)
+                        #if bb_msg.class_name != "":
+                        #    bbs_msg.bbs_array.append(bb_msg)
                             #rospy.loginfo(f"{row['name']} is detected! with confidence {row['confidence']:.2f}")
-                        self.bb_pub.publish(bbs_msg)   
+                        #self.bb_pub.publish(bbs_msg)   
                 self.ros_image = self.bridge.cv2_to_imgmsg(self.cv2_img, 'bgr8')
                 self.image_pub.publish(self.ros_image)
                     
