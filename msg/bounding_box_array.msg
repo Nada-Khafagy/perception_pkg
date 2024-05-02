@@ -1,2 +1,2 @@
-std_msgs/Header Header
+std_msgs/Header header
 bounding_box[] bbs_array
