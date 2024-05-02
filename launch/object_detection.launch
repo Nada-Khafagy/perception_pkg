@@ -5,7 +5,7 @@
     <arg name="confidence_threshold" default="0.5" />
     <arg name="iou_threshold" default="0.6" />
     <arg name="model_path" default="/src/yolov5" />
-    <arg name="weights_path" default="/model/bestv8n.pt" />
+    <arg name="weights_path" default="/model/bestv8nv2.pt" />
     <arg name="classes_path" default="/perception_pkg/model/data.yaml" />
     
     <node pkg="perception_pkg"  name="object_detection" type="object_detection_v8.py" output="screen">

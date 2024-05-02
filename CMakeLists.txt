@@ -16,8 +16,9 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   sensor_msgs
   cv_bridge
-
-
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -122,6 +123,7 @@ catkin_package(
   cv_bridge
   image_transport
   geometry_msgs
+  tf2_geometry_msgs
 #  DEPENDS system_lib
 )
 

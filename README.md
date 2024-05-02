@@ -4,7 +4,6 @@
 ```
 
 # Perception
-
 The perception of the vehicle will be divided into two parts: 
 - lane detection (Mina)
 - Object detection (Nada)
@@ -14,16 +13,15 @@ The perception of the vehicle will be divided into two parts:
 This milestone will be testing mainly! and seeing how the integration of image processing with CoppeliaSim will be done.
 - ~~Exctract info from Camera~~ 
 - ~~Test image processing operations~~
-- Create needed topics to integrate with navigation team --> we should discuss this
-- Get X,Y of the object and send on the topic
-- to facilitate the lane detection you can get the depth of the lines using Half Transform
-- Check if the aruco markers can be detected--> i added them to the YOLO classes still didn't test cv on them
+
+- ~~Get X,Y of the object and send on the topic~~
+- ~~to facilitate the lane detection you can get the depth of the lines using hough transform~~
+- Check if the aruco markers can be detected--> i added them to the YOLO classes still didn't test cv on them 
 - ~~look for already made packages that can be used~~
 
 
 ## Milestones IX -  23 April:
-- Commnunicate with the planning team
-- Take an action based on the processed frames 
+- ~~Create needed topics to integrate with navigation team~~
 - ~~invistigate YOLO~~
 
 ## Milestone X - 3 May:
@@ -52,27 +50,34 @@ This milestone will be testing mainly! and seeing how the integration of image p
 ## Yolo
 ### Data annotation
 - I am using Roboflow, https://universe.roboflow.com/autocomp/ccc123iii123ttt123yyy
-- it is recommended to have 1.5k> per class, rn it is around(800) total
-- the current classes are 9 : aruco marker sign, bike, building, car, person, plastic lane barrier, traffic cone, traffic sign, tree
+- it is recommended to have 1.5k> per class, rn its 815 augmented to 4193 total
+- the current classes are 14 : Left hand curve sign, Pedestrian Crossing sign, Right Hand Curve sign, Yield sign, car, person, plastic lane barrier, roundabout sign, speed limit (10) sign, speed limit (20) sign, speed limit (40) sign, speed limit (50) sign, stop sign, traffic cone
 
 ### training
-- used Yolov5m 
-    - mAP (0.5-0.95) = 0.68185 
-    - confusion matrix: acceptable but not the best
+-~~ used Yolov5m ~~
+    - ~~mAP (0.5-0.95) = 0.68185 ~~
+    - ~~confusion matrix: acceptable but not the best~~
+    - 
 - Yolov8n
-    - mAP (0.5-0.95) =  0.76426
-    - has a better confusion matrix
-    - trained it but haven't tested it yet
+    - curr mAP (0.5-0.95) =  0.82283 
+    - works pretty well
+    - still needs a litle bit of more training on more data
+    - can't accept grayscale image but i have used a workaround that
+    - might try to modify the model a bit
+
 ### integration with ros
 - made a simple wrapper lots of refrences are listed
 
 ## Testing the package
-- make sure you have CV2 and download and the other dependancies
+- make sure you have CV2 and download and the other dependancies, run this:
+```bash
+pip install -r requirements.txt
+```
 - you can run the following if you want the confidence to be 0.8 (default is 0.5 but then you will see how bad the model is T-T )
 ```bash
 roslaunch perception_pkg object_detection.launch confidence_threshold:=0.8
 ```
-- for the submodule to run you need to clone this repo then add the submodule
+- for the submodule to run you need to clone this repo then add the submodule (I don't use yolov5 anymore but if you want to try it)
 ```bash
 git clone --recurse-submodules https://github.com/ultralytics/yolov5
 cd src/yolov5
@@ -82,10 +87,11 @@ pip install -r requirements.txt
 - also put like an empty folder called include if building caused an issue
 
 ## Next Steps:
-- get new data with different scene settings and lightings and anotate them.
-- analayze the YOLO archetecture --> i found a tutorial where i can build it from scratch i might try that.
-- test using cv2 to detect aruco markers.
-- test yolov7 built on the Darknet framewotrk
+- ~~get new data with different scene settings and lightings and anotate them. (usless cuz of greyscale but might try diff lightings)~~
+- ~~analayze the YOLO archetecture --> i found a tutorial where i can build it from scratch i might try that.~~
+- test using cv2 to detect aruco markers and estimate distance
+- use the velodyne and try to estimate distance with obtacles better 
+- test yolov7 built on the Darknet framewotrk (meh might try that later not now)
 
 
 ## Refrences:
@@ -97,7 +103,7 @@ pip install -r requirements.txt
 - https://github.com/leggedrobotics/darknet_ros
 - https://github.com/mats-robotics/yolov5_ros
 - https://karpathy.github.io/2019/04/25/recipe/
-
-
+- https://medium.com/yodayoda/from-depth-map-to-point-cloud-7473721d3f
+- https://cs.wellesley.edu/~cs307/lectures/Camera.html
 
 
