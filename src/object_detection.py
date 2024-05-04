@@ -12,10 +12,14 @@ from geometry_msgs.msg import Vector3
 import os
 import sys
 import cv2
+import torch
+from copy import deepcopy
 from pathlib import Path
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
 from ultralytics.engine.results import Boxes
+from ultralytics.utils.plotting import colors
+from ultralytics.utils.plotting import Annotator
 
 class ObjectDetector:
     def __init__(self):
@@ -35,6 +39,10 @@ class ObjectDetector:
         
         self.res_x = rospy.get_param("~resolution_x", default=960)
         self.res_y = rospy.get_param("~resolution_y", default=480)
+        
+        self.person_num = rospy.get_param("~person_num", default=0)
+        self.car_num = rospy.get_param("~car_num", default=0)
+        self.cone_num = rospy.get_param("~cone_num", default=0)
         
         self.new_image_received = False
         self.new_depth_received = False
@@ -107,7 +115,7 @@ class ObjectDetector:
                                         [0, 1, 0, y],
                                         [0, 0, 1, z],
                                         [0, 0, 0, 1]])
-        print(f"base_map_tf: {self.base_map_tf}")
+        #print(f"base_map_tf: {self.base_map_tf}")
 
     
     def encoder_callback(self, msg):
@@ -121,7 +129,7 @@ class ObjectDetector:
                                     [0, 1, 0, y],
                                     [0, 0, 1, 0.86885],
                                     [0, 0, 0, 1]])
-        print(f"base_map_tf: {self.base_map_tf}")
+        #print(f"base_map_tf: {self.base_map_tf}")
         
            
     def calc_intrinsic_camera_info(self):
@@ -144,37 +152,86 @@ class ObjectDetector:
                 self.new_image_received = False
                 self.new_depth_received = False
                 
-                box_results = self.draw_boxes()
+                #box_results = self.draw_boxes()
+
+                bbs_msg = self.create_bounding_boxes()
                 self.ros_image = self.bridge.cv2_to_imgmsg(self.output_cv2_img, 'bgr8')
-                             
-                if self.use_depth:
-                    bbs_msg = self.create_bounding_boxes_array_msg(box_results)
-                    #publish only if bounding boxes are detected
-                    if bbs_msg is not None:
-                        #rospy.loginfo(f"Publishing {len(bbs_msg.bbs_array)} bounding boxes")
-                        self.bb_pub.publish(bbs_msg)
+                              
+                #publish only if bounding boxes are detected
+                if bbs_msg is not None:
+                    #rospy.loginfo(f"Publishing {len(bbs_msg.bbs_array)} bounding boxes")
+                    self.bb_pub.publish(bbs_msg)
             
             self.image_pub.publish(self.ros_image)
             self.old_ros_img = self.raw_ros_image
-        
-    def draw_boxes(self):
+            
+
+    def create_bounding_boxes(self):
         model_results = self.model(self.raw_cv2_img, conf=self.conf, iou=self.iou, verbose=False)
-        results: Results
         results = model_results[0]
-        self.output_cv2_img = results.plot()
-        return results
-     
-    def create_bounding_boxes_array_msg(self, results: Results):
-        bbs_msg = bounding_box_array()
-        bbs_msg.header.stamp = rospy.Time.now()
-        bbs_msg.header.frame_id = 'bounding_boxes'  
-        bounding_boxes: Boxes
-        bounding_boxes = results.boxes
-        if bounding_boxes is not None:
-            for bbox in bounding_boxes:
-                bb_msg = self.create_bounding_box_msg(bbox, results.names)
-                if bb_msg is not None:
-                    bbs_msg.bbs_array.append(bb_msg)
+        results: Results
+        names = results.names
+        is_obb = results.obb is not None
+        pred_boxes = results.obb if is_obb else results.boxes
+        pred_probs, show_probs = results.probs, True
+        annotator = Annotator(
+            deepcopy(results.orig_img) ,
+            pil = ((pred_probs is not None and show_probs)),  # Classify tasks default to pil=True
+            example=names,
+        )
+                
+        if pred_boxes is not None:
+            bbs_msg = bounding_box_array()
+            bbs_msg.header.stamp = rospy.Time.now()
+            bbs_msg.header.frame_id = 'bounding_boxes'
+            person_count = 0
+            car_count = 0
+            cone_count = 0
+            person_precsion = 1
+            car_precsion = 1
+            cone_precsion = 1
+            
+            for bbox in reversed(pred_boxes):
+                c, conf, id = int(bbox.cls), float(bbox.conf) , None if bbox.id is None else int(bbox.id.item())
+                name = ("" if id is None else f"id:{id} ") + names[c]
+                text = (f"{name} {conf:.2f}" if conf else name) #you can change it here to any other custom texts
+                box = bbox.xyxyxyxy.reshape(-1, 4, 2).squeeze() if is_obb else bbox.xyxy.squeeze()
+                annotator.box_label(box, text, color=colors(c, True), rotated=is_obb)
+                
+                # Draw centroid
+                centroid_x = (box[0] + box[2]) / 2
+                centroid_y = (box[1] + box[3]) / 2
+                centroid = (int(centroid_x), int(centroid_y))
+                annotator.draw_specific_points([centroid],indices=[0])
+                
+                if name == "person":
+                    person_count += 1
+                elif name == "car":
+                    car_count += 1
+                elif name == "traffic cone":
+                    cone_count += 1
+                
+                if self.use_depth:
+                    bb_msg = self.create_bounding_box_msg(bbox, results.names)
+                    if bb_msg is not None:
+                        bbs_msg.bbs_array.append(bb_msg)
+                # Plot Classify results
+            if pred_probs is not None and show_probs:
+                text = ",\n".join(f"{names[j] if names else j} {pred_probs.data[j]:.2f}" for j in pred_probs.top5)
+                x = round(self.orig_shape[0] * 0.03)
+                annotator.text([x, x], text, txt_color=(255, 255, 255))  # TODO: allow setting colors
+       
+            self.output_cv2_img = annotator.result()
+            if self.person_num != 0: 
+                person_precsion = person_count / self.person_num
+            if self.car_num != 0:
+                car_precsion = car_count / self.car_num
+            if self.cone_num != 0:
+                cone_precsion = cone_count / self.cone_num
+            rospy.loginfo(f"Person percision: {person_precsion}, Car percision: {car_precsion}, Cone percision: {cone_precsion}")
+        else:
+            bbs_msg = None
+            self.output_cv2_img = self.raw_cv2_img
         return bbs_msg if bbs_msg.bbs_array else None
     
     #WIP
@@ -198,11 +255,10 @@ class ObjectDetector:
         y = int((y1+y2)/2)
         camera_point = self.get_point_wrt_camera_frame(x, y)
         #self.centroid_pub.publish(camera_point)
-        #print(f"camera point: {camera_point} \n of class: {bb_msg.class_name}")
         base_link_point = self.get_point_wrt_base_link(camera_point)
         map_point = self.get_point_wrt_map(base_link_point)
         
-        print(f"map point: {map_point} \n of class: {bb_msg.class_name}")
+        #print(f"map point: {map_point} \n of class: {bb_msg.class_name}")
         bb_msg.centroid.header.stamp = rospy.Time.now()
         bb_msg.centroid.header.frame_id = 'map'
         if map_point is None:
@@ -235,7 +291,7 @@ class ObjectDetector:
         x_pos = ((x_pix - self.cx_d) * z_pos) / self.fx_d
         y_pos = ((y_pix - self.cy_d) * z_pos) / self.fy_d
 
-        #create a point in camera frame    
+        #create a point in camera frame
         camera_point = PointStamped()
         camera_point.header.stamp = rospy.Time.now()
         camera_point.header.frame_id = "camera_frame"

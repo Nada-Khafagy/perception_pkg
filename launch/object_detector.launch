@@ -14,6 +14,9 @@
     <arg name="prespective_angle_x" default="85" />    
     <arg name="resolution_x" default="960" />
     <arg name="resolution_y" default="480" />
+    <arg name="person_num" default="0" />
+    <arg name="car_num" default="0" />
+    <arg name="cone_num" default="0" />
 
     <!-- launch object detector node-->
     <node pkg="perception_pkg"  name="object_detection" type="object_detection.py" output="screen">
@@ -23,6 +26,9 @@
         <param name="use_depth" value="$(arg use_depth)"/>
         <param name="use_tracking" value="$(arg use_tracking)"/>
         <param name="use_encoder" value="$(arg use_encoder)"/>
+        <param name="person_num" value="$(arg person_num)"/>
+        <param name="car_num" value="$(arg car_num)"/>
+        <param name="cone_num" value="$(arg cone_num)"/>
 
         <param name="image_rgb_topic_name" value="$(arg image_rgb_topic_name)" />
         <param name="image_depth_topic_name" value="$(arg image_depth_topic_name)" />
