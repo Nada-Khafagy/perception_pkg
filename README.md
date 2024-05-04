@@ -45,31 +45,24 @@ This milestone will be testing mainly! and seeing how the integration of image p
 
 ## Camera specification in Coppeliasim
 - frequency = 20 Hz
-- near/far plane = [0.1, 100] (I wanted to capture the sky)
-- perspective angle = 60deg
-- resolution 1080x720
+- near/far plane = [0.1, 10-0] 
+- perspective angle = 85.0deg
+- resolution 960x480
+- extension string : povray {focalBlur {false} focalDist {2.00} aperture{0.05} blurSamples{10}}
 
 ## Environment 
-- https://drive.google.com/file/d/1Fx4pnt02th4oUcjqRUbAMUMitahHYjym/view?usp=sharing
-
+- 
 
 ## Yolo
 ### Data annotation
 - I am using Roboflow, https://universe.roboflow.com/autocomp/ccc123iii123ttt123yyy
-- it is recommended to have 1.5k> per class, rn its 815 augmented to 4193 total
+- it is recommended to have 1.5k> per class, rn its 1014
 - the current classes are 14 : Left hand curve sign, Pedestrian Crossing sign, Right Hand Curve sign, Yield sign, car, person, plastic lane barrier, roundabout sign, speed limit (10) sign, speed limit (20) sign, speed limit (40) sign, speed limit (50) sign, stop sign, traffic cone
 
 ### training
--~~ used Yolov5m ~~
-    - ~~mAP (0.5-0.95) = 0.68185 ~~
-    - ~~confusion matrix: acceptable but not the best~~
-    - 
 - Yolov8n
-    - curr mAP (0.5-0.95) =  0.82283 
-    - works pretty well
-    - still needs a litle bit of more training on more data
-    - can't accept grayscale image but i have used a workaround that
-    - might try to modify the model a bit
+    - curr mAP (0.5-0.95) =  0.74099 --> lower than last time due to the lower number of imgs (less agumentation) 
+    but i was testing to see if that will improve the recall, it didn't :) will increse the dataset and train again with higher augmentation...
 
 ### integration with ros
 - made a simple wrapper lots of refrences are listed
@@ -79,25 +72,27 @@ This milestone will be testing mainly! and seeing how the integration of image p
 ```bash
 pip install -r requirements.txt
 ```
-- you can run the following if you want the confidence to be 0.8 (default is 0.5 but then you will see how bad the model is T-T )
+- to run with the filtered data
 ```bash
-roslaunch perception_pkg object_detection.launch confidence_threshold:=0.8
+roslaunch perception_pkg object_detector.launch confidence_threshold:=0.4 person_num:=2 car_num:=1 cone_num:=1  use_encoder:=true
 ```
-- for the submodule to run you need to clone this repo then add the submodule (I don't use yolov5 anymore but if you want to try it)
+- to send bounding boxes msgs
 ```bash
-git clone --recurse-submodules https://github.com/ultralytics/yolov5
-cd src/yolov5
-pip install -r requirements.txt
+roslaunch perception_pkg object_detector.launch confidence_threshold:=0.4 person_num:=2 car_num:=1 cone_num:=1 use_depth:=true
+
+
 ```
 - then don't forget to build the package (I hope it works)
 - also put like an empty folder called include if building caused an issue
+- make sure to launch with the number of the main three classes : person, cone, car, in order to get their percision
 
 ## Next Steps:
 - ~~get new data with different scene settings and lightings and anotate them. (usless cuz of greyscale but might try diff lightings)~~
 - ~~analayze the YOLO archetecture --> i found a tutorial where i can build it from scratch i might try that.~~
-- test using cv2 to detect aruco markers and estimate distance
+- ~~test using cv2 to detect aruco markers and estimate distance (neglect this for now)~~
+- ~~test yolov7 built on the Darknet framewotrk (meh might try that later not now)~~
+- optimize inference time using openvino and look for other techniques
 - use the velodyne and try to estimate distance with obtacles better 
-- test yolov7 built on the Darknet framewotrk (meh might try that later not now)
 
 
 ## Refrences:
@@ -112,4 +107,4 @@ pip install -r requirements.txt
 - https://medium.com/yodayoda/from-depth-map-to-point-cloud-7473721d3f
 - https://cs.wellesley.edu/~cs307/lectures/Camera.html
 
-
+- https://github.com/openvinotoolkit/openvino
