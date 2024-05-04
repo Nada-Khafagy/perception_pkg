@@ -1,0 +1,23 @@
+<?xml version='1.0'?>
+
+<launch>
+  
+  <!-- Input Arguments -->
+  <arg name="image_rgb_topic_name" default="/image" />
+  <arg name="image_depth_topic_name" default="/image_depth" />
+  <arg name="odom_topic_name" default="/odom" />
+  <arg name="prespective_angle_x" default="60" />
+  <arg name="resolution_x" default="960" />
+  <arg name="resolution_y" default="480" />
+
+  <!-- Launch Lane Detector Node -->
+  <node pkg="lane_detection_canny" type="lane_detection.py" name="lane_detection" output="screen">
+    <param name="image_rgb_topic_name" value="$(arg image_rgb_topic_name)" />
+    <param name="image_depth_topic_name" value="$(arg image_depth_topic_name)" />
+    <param name="odom_topic_name" value="$(arg odom_topic_name)" />
+    <param name="prespective_angle_x" value="$(arg prespective_angle_x)" />
+    <param name="resolution_x" value="$(arg resolution_x)" />
+    <param name="resolution_y" value="$(arg resolution_y)" />
+  </node>
+  
+</launch>
