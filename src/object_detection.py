@@ -8,11 +8,8 @@ from geometry_msgs.msg import Point
 from geometry_msgs.msg import PointStamped
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Vector3
-
 import os
 import sys
-import cv2
-import torch
 from copy import deepcopy
 from pathlib import Path
 from ultralytics import YOLO
@@ -71,7 +68,8 @@ class ObjectDetector:
         
         #intaloze puplishers and subscribers
         self.image_pub = rospy.Publisher('/detected_image', Image, queue_size=1)
-        self.bb_pub = rospy.Publisher('/bounding_boxes', bounding_box_array, queue_size=1)
+        if self.use_depth:
+            self.bb_pub = rospy.Publisher('/bounding_boxes', bounding_box_array, queue_size=1)
         #self.centroid_pub = rospy.Publisher('/centroid', PointStamped, queue_size=1)
         self.image_sub = rospy.Subscriber(img_topic_name, Image, self.image_callback)
         self.depth_sub = rospy.Subscriber(depth_topic_name, Image, self.depth_callback)
@@ -181,9 +179,11 @@ class ObjectDetector:
         )
                 
         if pred_boxes is not None:
-            bbs_msg = bounding_box_array()
-            bbs_msg.header.stamp = rospy.Time.now()
-            bbs_msg.header.frame_id = 'bounding_boxes'
+            if self.use_depth:
+                bbs_msg = bounding_box_array()
+                bbs_msg.header.stamp = rospy.Time.now()
+                bbs_msg.header.frame_id = 'bounding_boxes'
+                
             person_count = 0
             car_count = 0
             cone_count = 0
@@ -232,7 +232,10 @@ class ObjectDetector:
         else:
             bbs_msg = None
             self.output_cv2_img = self.raw_cv2_img
-        return bbs_msg if bbs_msg.bbs_array else None
+        if self.use_depth:
+            return bbs_msg if bbs_msg.bbs_array else None
+        else:
+            return None
     
     #WIP
     def track_objects(self):
