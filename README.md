@@ -19,14 +19,20 @@ This milestone will be testing mainly! and seeing how the integration of image p
 - Check if the aruco markers can be detected--> i added them to the YOLO classes still didn't test cv on them 
 - ~~look for already made packages that can be used~~
 
+- ~~create a lane detection using canny edge detector~~
+
 
 ## Milestones IX -  23 April:
 - ~~Create needed topics to integrate with navigation team~~
 - ~~invistigate YOLO~~
 
+- ~~investigate other lane detection protocols such as morphological operatins~~
+
 ## Milestone X - 3 May:
 - Modify Yolo
-- Check how to make the operation faster since there might be a lot of delay in the processing (avoid drawbacks) 
+- Check how to make the operation faster since there might be a lot of delay in the processing (avoid drawbacks)
+
+- ~~create a ROS node and test it in the environment to get the desired final output and test the curves adaptability~~
 
 ## Milestone XI - 7 May:
 - System integration
