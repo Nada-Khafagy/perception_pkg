@@ -254,9 +254,10 @@ class ObjectDetector:
         x = int((x1+x2)/2)
         y = int((y1+y2)/2)
         camera_point = self.get_point_wrt_camera_frame(x, y)
-        #self.centroid_pub.publish(camera_point)
+        
         base_link_point = self.get_point_wrt_base_link(camera_point)
         map_point = self.get_point_wrt_map(base_link_point)
+        
         
         #print(f"map point: {map_point} \n of class: {bb_msg.class_name}")
         bb_msg.centroid.header.stamp = rospy.Time.now()
@@ -266,6 +267,7 @@ class ObjectDetector:
         bb_msg.centroid.point.x = map_point.point.x
         bb_msg.centroid.point.y = map_point.point.y
         bb_msg.centroid.point.z = map_point.point.z
+        #self.centroid_pub.publish(bb_msg.centroid)
         
         
         #bounding box width and height in world coordinates
