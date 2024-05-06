@@ -48,7 +48,6 @@ This milestone will be testing mainly! and seeing how the integration of image p
 - near/far plane = [0.1, 10-0] 
 - perspective angle = 85.0deg
 - resolution 960x480
-- extension string : povray {focalBlur {false} focalDist {2.00} aperture{0.05} blurSamples{10}}
 
 ## Environment 
 - 

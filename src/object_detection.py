@@ -7,14 +7,12 @@ from perception_pkg.msg import bounding_box,bounding_box_array
 from geometry_msgs.msg import Point
 from geometry_msgs.msg import PointStamped
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Vector3
 import os
 import sys
 from copy import deepcopy
 from pathlib import Path
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
-from ultralytics.engine.results import Boxes
 from ultralytics.utils.plotting import colors
 from ultralytics.utils.plotting import Annotator
 
@@ -22,36 +20,32 @@ class ObjectDetector:
     def __init__(self):
         rospy.init_node('object_detector', anonymous=True)
         self.bridge = CvBridge()
-        
+        #get parameters
         self.conf = rospy.get_param("~confidence_threshold", default="0.5")  # NMS confidence threshold
         self.iou = rospy.get_param("~iou_threshold", default="0.6")  # NMS IoU threshold
         img_topic_name = rospy.get_param("~image_rgb_topic_name", default="/image")
         depth_topic_name = rospy.get_param("~image_depth_topic_name", default="/image_depth")
         odom_topic_name = rospy.get_param("~odom_topic_name", default="/odom")
-        
+        encoder_topic_name = rospy.get_param("~encoder_topic_name", default="/encoder_state_estimation")
         self.use_depth = rospy.get_param("~use_depth", default=False)
         self.use_tracking = rospy.get_param("~use_tracking", default=False)
         self.use_encoder = rospy.get_param("~use_encoder", default=False)
         self.perspective_angle = rospy.get_param("~prespective_angle_x", default=85.0)
-        
         self.res_x = rospy.get_param("~resolution_x", default=960)
         self.res_y = rospy.get_param("~resolution_y", default=480)
-        
         self.person_num = rospy.get_param("~person_num", default=0)
         self.car_num = rospy.get_param("~car_num", default=0)
         self.cone_num = rospy.get_param("~cone_num", default=0)
-        
+        #initialize variables
         self.new_image_received = False
         self.new_depth_received = False
         self.depth_data = None
         self.base_map_tf = None
-        
         self.raw_cv2_img = None
         self.output_cv2_img = None
         self.raw_ros_image = None
         self.ros_image = None
         self.old_ros_img = None #to make sure the same image is not detected on twice 
-
         self.is_shutdown = False
         #get absolute path sometimes it causes errors with the relative path when loading yolo
         FILE = Path(__file__).resolve()
@@ -59,23 +53,20 @@ class ObjectDetector:
         if str(ROOT) not in sys.path:
             sys.path.append(str(ROOT))  # add ROOT to PATH
         ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
-
         pkg_path = str(FILE.parents[0].parents[0].resolve())
-        weights_path = pkg_path + rospy.get_param('~weights_path', default="/model/best.pt")
-        
+        weights_path = pkg_path + rospy.get_param('~weights_path', default="/model/best.pt")       
         self.model = YOLO(weights_path, verbose=True)
-        self.calc_intrinsic_camera_info()   
-        
-        #intaloze puplishers and subscribers
+        #get camera intrinsic parameters
+        self.calc_intrinsic_camera_info()         
+        #intalize puplishers and subscribers
         self.image_pub = rospy.Publisher('/detected_image', Image, queue_size=1)
         if self.use_depth:
             self.bb_pub = rospy.Publisher('/bounding_boxes', bounding_box_array, queue_size=1)
         #self.centroid_pub = rospy.Publisher('/centroid', PointStamped, queue_size=1)
         self.image_sub = rospy.Subscriber(img_topic_name, Image, self.image_callback)
         self.depth_sub = rospy.Subscriber(depth_topic_name, Image, self.depth_callback)
-
         if self.use_encoder:
-            self.encoder_sub = rospy.Subscriber('/vehicle_position', Vector3, self.encoder_callback)
+            self.encoder_sub = rospy.Subscriber(encoder_topic_name, Odometry, self.encoder_callback)
         else:
             self.odom_sub = rospy.Subscriber(odom_topic_name, Odometry, self.odom_callback)
         
@@ -108,26 +99,24 @@ class ObjectDetector:
         x = msg.pose.pose.position.x
         y = msg.pose.pose.position.y
         z = msg.pose.pose.position.z
-
         self.base_map_tf = np.array([[1, 0, 0, x],
                                         [0, 1, 0, y],
                                         [0, 0, 1, z],
                                         [0, 0, 0, 1]])
-        #print(f"base_map_tf: {self.base_map_tf}")
+        
 
-    
     def encoder_callback(self, msg):
         # construct transformation matrix from odom data
-        msg: Vector3
+        msg: Odometry
         #translation components
-        x = msg.x
-        y = msg.y
-        z = msg.z
+        x = msg.pose.pose.position.x
+        y = msg.pose.pose.position.y
+        z = msg.pose.pose.position.z + 0.869
         self.base_map_tf = np.array([[1, 0, 0, x],
                                     [0, 1, 0, y],
-                                    [0, 0, 1, 0.86885],
+                                    [0, 0, 1, z],
                                     [0, 0, 0, 1]])
-        #print(f"base_map_tf: {self.base_map_tf}")
+        
         
            
     def calc_intrinsic_camera_info(self):
@@ -149,17 +138,12 @@ class ObjectDetector:
             else:
                 self.new_image_received = False
                 self.new_depth_received = False
-                
-                #box_results = self.draw_boxes()
-
                 bbs_msg = self.create_bounding_boxes()
-                self.ros_image = self.bridge.cv2_to_imgmsg(self.output_cv2_img, 'bgr8')
-                              
+                self.ros_image = self.bridge.cv2_to_imgmsg(self.output_cv2_img, 'bgr8')             
                 #publish only if bounding boxes are detected
                 if bbs_msg is not None:
                     #rospy.loginfo(f"Publishing {len(bbs_msg.bbs_array)} bounding boxes")
-                    self.bb_pub.publish(bbs_msg)
-            
+                    self.bb_pub.publish(bbs_msg)          
             self.image_pub.publish(self.ros_image)
             self.old_ros_img = self.raw_ros_image
             
@@ -176,34 +160,31 @@ class ObjectDetector:
             deepcopy(results.orig_img) ,
             pil = ((pred_probs is not None and show_probs)),  # Classify tasks default to pil=True
             example=names,
-        )
-                
+        )            
         if pred_boxes is not None:
             if self.use_depth:
                 bbs_msg = bounding_box_array()
                 bbs_msg.header.stamp = rospy.Time.now()
-                bbs_msg.header.frame_id = 'bounding_boxes'
-                
+                bbs_msg.header.frame_id = 'bounding_boxes'   
+            #initialize counts to get precision          
             person_count = 0
             car_count = 0
             cone_count = 0
             person_precsion = 1
             car_precsion = 1
             cone_precsion = 1
-            
             for bbox in reversed(pred_boxes):
                 c, conf, id = int(bbox.cls), float(bbox.conf) , None if bbox.id is None else int(bbox.id.item())
                 name = ("" if id is None else f"id:{id} ") + names[c]
                 text = (f"{name} {conf:.2f}" if conf else name) #you can change it here to any other custom texts
                 box = bbox.xyxyxyxy.reshape(-1, 4, 2).squeeze() if is_obb else bbox.xyxy.squeeze()
                 annotator.box_label(box, text, color=colors(c, True), rotated=is_obb)
-                
                 # Draw centroid
                 centroid_x = (box[0] + box[2]) / 2
                 centroid_y = (box[1] + box[3]) / 2
                 centroid = (int(centroid_x), int(centroid_y))
                 annotator.draw_specific_points([centroid],indices=[0])
-                
+                # Count the number of detected objects
                 if name == "person":
                     person_count += 1
                 elif name == "car":
@@ -263,22 +244,18 @@ class ObjectDetector:
         
         
         #print(f"map point: {map_point} \n of class: {bb_msg.class_name}")
-        bb_msg.centroid.header.stamp = rospy.Time.now()
-        bb_msg.centroid.header.frame_id = 'map'
+        #bb_msg.centroid.header.stamp = rospy.Time.now()
+        #bb_msg.centroid.header.frame_id = 'map'
         if map_point is None:
             return None
-        bb_msg.centroid.point.x = map_point.point.x
-        bb_msg.centroid.point.y = map_point.point.y
-        bb_msg.centroid.point.z = map_point.point.z
+        bb_msg.centroid.x = map_point.point.x
+        bb_msg.centroid.y = map_point.point.y
+        bb_msg.centroid.z = map_point.point.z
         #self.centroid_pub.publish(bb_msg.centroid)
         
-        
         #bounding box width and height in world coordinates
-        point_TL, point_TR, point_BL, point_BR, width, length = self.get_width_length_in_world_coordinates(x1, y1, x2, y2, bb_msg.centroid.point.z)
-        #bb_msg.TL = point_TL
-        #bb_msg.TR = point_TR
-        #bb_msg.BL = point_BL
-        #bb_msg.BR = point_BR 
+        width, length = self.get_width_length_in_world_coordinates(x1, y1, x2, y2, bb_msg.centroid.z)
+ 
         
         bb_msg.width = width
         bb_msg.length = length
@@ -390,12 +367,12 @@ class ObjectDetector:
         point_TL = np.array([map_point1.point.x, map_point1.point.y, z])
         point_TR = np.array([map_point2.point.x, map_point2.point.y, z])
         point_BL = np.array([map_point3.point.x, map_point3.point.y, z])
-        point_BR = np.array([map_point4.point.x, map_point3.point.y, z])
+        #point_BR = np.array([map_point4.point.x, map_point3.point.y, z])
         # Compute the Euclidean distance to get the width and length in meters
         width = np.linalg.norm(point_TL - point_TR)
         length = np.linalg.norm(point_TL - point_BL)
         
-        return point_TL, point_TR, point_BL, point_BR, width, length
+        return width, length
     
                        
     def cleanup(self):

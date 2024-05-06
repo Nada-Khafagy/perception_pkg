@@ -11,6 +11,7 @@
     <arg name="image_rgb_topic_name" default="/image" />
     <arg name="image_depth_topic_name" default="/image_depth" />
     <arg name="odom_topic_name" default="/odom" />
+    <arg name="encoder_topic_name" default="/encoder_state_estimation" />
     <arg name="prespective_angle_x" default="85" />    
     <arg name="resolution_x" default="960" />
     <arg name="resolution_y" default="480" />
