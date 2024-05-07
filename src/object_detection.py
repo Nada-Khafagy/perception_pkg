@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 import numpy as np
+import cv2 
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from perception_pkg.msg import bounding_box,bounding_box_array
@@ -15,6 +16,9 @@ from ultralytics import YOLO
 from ultralytics.engine.results import Results
 from ultralytics.utils.plotting import colors
 from ultralytics.utils.plotting import Annotator
+
+#get absolute path sometimes it causes errors with the relative path when loading yolo
+FILE = Path(__file__).resolve()
 
 class ObjectDetector:
     def __init__(self):
@@ -47,12 +51,6 @@ class ObjectDetector:
         self.ros_image = None
         self.old_ros_img = None #to make sure the same image is not detected on twice 
         self.is_shutdown = False
-        #get absolute path sometimes it causes errors with the relative path when loading yolo
-        FILE = Path(__file__).resolve()
-        ROOT = FILE.parents[0] / "yolov8" # YOLOv5 root directory
-        if str(ROOT) not in sys.path:
-            sys.path.append(str(ROOT))  # add ROOT to PATH
-        ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
         pkg_path = str(FILE.parents[0].parents[0].resolve())
         weights_path = pkg_path + rospy.get_param('~weights_path', default="/model/best.pt")       
         self.model = YOLO(weights_path, verbose=True)
@@ -130,11 +128,13 @@ class ObjectDetector:
         # run only if new image and depth data is received
         if self.raw_cv2_img is not None and self.new_image_received and self.new_depth_received and not self.base_map_tf is None: 
             if self.old_ros_img is not None and (self.raw_ros_image.header == self.old_ros_img.header):
-                rospy.loginfo(f"called on same image!!")   
+                rospy.logdebug(f"called on same image!!")   
             else:
                 self.new_image_received = False
                 self.new_depth_received = False
                 bbs_msg = self.create_bounding_boxes()
+                #save image
+                #cv2.imwrite(str(FILE.parents[0].resolve())+"/car.jpg", self.output_cv2_img)
                 self.ros_image = self.bridge.cv2_to_imgmsg(self.output_cv2_img, 'bgr8')             
                 #publish only if bounding boxes are detected
                 if bbs_msg is not None:
@@ -162,10 +162,9 @@ class ObjectDetector:
                 bbs_msg = bounding_box_array()
                 bbs_msg.header.stamp = rospy.Time.now()
                 bbs_msg.header.frame_id = 'bounding_boxes'   
-            #initialize counts to get precision          
-            person_count = 0
-            car_count = 0
-            cone_count = 0
+            #initialize counts to get precision 
+            #assume we only calculate for one class in a run      
+            count = 0
             precsion = 1
 
             for bbox in reversed(pred_boxes):
@@ -180,12 +179,13 @@ class ObjectDetector:
                     centroid_y = (box[1] + box[3]) / 2
                     centroid = (int(centroid_x), int(centroid_y))
                     annotator.draw_specific_points([centroid],indices=[0])
+
                 elif self.person_num > 0 and name == "person":
-                    person_count += 1
+                    count += 1
                 elif self.car_num > 0 and name == "car":
-                    car_count += 1
+                    count += 1
                 elif self.cone_num > 0 and name == "traffic cone":
-                    cone_count += 1
+                    count += 1
                 #only create msg with data in 3d if needed
                 if self.use_depth:
                     bb_msg = self.create_bounding_box_msg(bbox, results.names)
@@ -194,11 +194,11 @@ class ObjectDetector:
 
             self.output_cv2_img = annotator.result()
             if self.person_num != 0: 
-                precsion = person_count / self.person_num
+                precsion = count / self.person_num
             elif self.car_num != 0:
-                precsion = car_count / self.car_num
+                precsion = count / self.car_num
             elif self.cone_num != 0:
-                precsion = cone_count / self.cone_num
+                precsion = count / self.cone_num
                 
             
             if self.person_num!=0 or self.car_num!=0 or self.cone_num!=0 :
@@ -214,6 +214,7 @@ class ObjectDetector:
                         centroid_y = (box[1] + box[3]) / 2
                         centroid = (int(centroid_x), int(centroid_y))
                         annotator.draw_specific_points([centroid],indices=[0])
+
                         rospy.loginfo(f"percision: {precsion}")
         else:
             bbs_msg = None
