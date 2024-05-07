@@ -34,12 +34,10 @@ class ObjectDetector:
         self.use_depth = rospy.get_param("~use_depth", default=False)
         self.use_tracking = rospy.get_param("~use_tracking", default=False)
         self.use_encoder = rospy.get_param("~use_encoder", default=False)
+        self.use_less_classes = rospy.get_param("~use_less_classes", default=False)
         self.perspective_angle = rospy.get_param("~prespective_angle_x", default=85.0)
         self.res_x = rospy.get_param("~resolution_x", default=960)
         self.res_y = rospy.get_param("~resolution_y", default=480)
-        self.person_num = rospy.get_param("~person_num", default=0)
-        self.car_num = rospy.get_param("~car_num", default=0)
-        self.cone_num = rospy.get_param("~cone_num", default=0)
         #initialize variables
         self.new_image_received = False
         self.new_depth_received = False
@@ -51,6 +49,7 @@ class ObjectDetector:
         self.ros_image = None
         self.old_ros_img = None #to make sure the same image is not detected on twice 
         self.is_shutdown = False
+        self.compact_classes_names = ["car", "person", "traffic cone"] #hardcodded for now
         pkg_path = str(FILE.parents[0].parents[0].resolve())
         weights_path = pkg_path + rospy.get_param('~weights_path', default="/model/best.pt")       
         self.model = YOLO(weights_path, verbose=True)
@@ -134,7 +133,7 @@ class ObjectDetector:
                 self.new_depth_received = False
                 bbs_msg = self.create_bounding_boxes()
                 #save image
-                #cv2.imwrite(str(FILE.parents[0].resolve())+"/car.jpg", self.output_cv2_img)
+                cv2.imwrite(str(FILE.parents[0].resolve())+"/car.jpg", self.output_cv2_img)
                 self.ros_image = self.bridge.cv2_to_imgmsg(self.output_cv2_img, 'bgr8')             
                 #publish only if bounding boxes are detected
                 if bbs_msg is not None:
@@ -162,30 +161,22 @@ class ObjectDetector:
                 bbs_msg = bounding_box_array()
                 bbs_msg.header.stamp = rospy.Time.now()
                 bbs_msg.header.frame_id = 'bounding_boxes'   
-            #initialize counts to get precision 
-            #assume we only calculate for one class in a run      
-            count = 0
-            precsion = 1
 
+            
             for bbox in reversed(pred_boxes):
                 c, conf, id = int(bbox.cls), float(bbox.conf) , None if bbox.id is None else int(bbox.id.item())
                 name = ("" if id is None else f"id:{id} ") + names[c] 
-                if self.person_num == 0 and self.car_num == 0 and self.cone_num == 0:
-                    box = bbox.xyxyxyxy.reshape(-1, 4, 2).squeeze() if is_obb else bbox.xyxy.squeeze()
-                    text = (f"{name} {conf:.2f}" if conf else name) #you can change it to any other custom text
-                    annotator.box_label(box, text, color=colors(c, True), rotated=is_obb)
-                    # Draw centroid
-                    centroid_x = (box[0] + box[2]) / 2
-                    centroid_y = (box[1] + box[3]) / 2
-                    centroid = (int(centroid_x), int(centroid_y))
-                    annotator.draw_specific_points([centroid],indices=[0])
-
-                elif self.person_num > 0 and name == "person":
-                    count += 1
-                elif self.car_num > 0 and name == "car":
-                    count += 1
-                elif self.cone_num > 0 and name == "traffic cone":
-                    count += 1
+                if self.use_less_classes and name not in self.compact_classes_names:
+                    continue
+                box = bbox.xyxyxyxy.reshape(-1, 4, 2).squeeze() if is_obb else bbox.xyxy.squeeze()
+                text = (f"{name} {conf:.2f}" if conf else name) #you can change it to any other custom text
+                annotator.box_label(box, text, color=colors(c, True), rotated=is_obb)
+                # Draw centroid
+                centroid_x = (box[0] + box[2]) / 2
+                centroid_y = (box[1] + box[3]) / 2
+                centroid = (int(centroid_x), int(centroid_y))
+                annotator.draw_specific_points([centroid],indices=[0])
+                
                 #only create msg with data in 3d if needed
                 if self.use_depth:
                     bb_msg = self.create_bounding_box_msg(bbox, results.names)
@@ -193,29 +184,7 @@ class ObjectDetector:
                         bbs_msg.bbs_array.append(bb_msg)
 
             self.output_cv2_img = annotator.result()
-            if self.person_num != 0: 
-                precsion = count / self.person_num
-            elif self.car_num != 0:
-                precsion = count / self.car_num
-            elif self.cone_num != 0:
-                precsion = count / self.cone_num
                 
-            
-            if self.person_num!=0 or self.car_num!=0 or self.cone_num!=0 :
-                for bbox in reversed(pred_boxes):
-                    c, conf, id = int(bbox.cls), float(bbox.conf) , None if bbox.id is None else int(bbox.id.item())
-                    name = ("" if id is None else f"id:{id} ") + names[c]
-                    if (self.person_num != 0 and name == "person") or (self.car_num != 0 and name == "car") or (self.cone_num != 0 and name == "traffic cone"):
-                        box = bbox.xyxyxyxy.reshape(-1, 4, 2).squeeze() if is_obb else bbox.xyxy.squeeze()
-                        text = (f"{name} {precsion:.2f}" if conf else name) #you can change it to any other custom text
-                        annotator.box_label(box, text, color=colors(c, True), rotated=is_obb)
-                        # Draw centroid
-                        centroid_x = (box[0] + box[2]) / 2
-                        centroid_y = (box[1] + box[3]) / 2
-                        centroid = (int(centroid_x), int(centroid_y))
-                        annotator.draw_specific_points([centroid],indices=[0])
-
-                        rospy.loginfo(f"percision: {precsion}")
         else:
             bbs_msg = None
             self.output_cv2_img = self.raw_cv2_img
@@ -353,8 +322,7 @@ class ObjectDetector:
         width = np.linalg.norm(point_TL - point_TR)
         length = np.linalg.norm(point_TL - point_BL)        
         return width, length
-    
-                       
+                          
     def cleanup(self):
         self.image_sub.unregister()
         self.depth_sub.unregister()
