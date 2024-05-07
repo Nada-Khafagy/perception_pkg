@@ -49,8 +49,8 @@ This milestone will be testing mainly! and seeing how the integration of image p
 - perspective angle = 85.0deg
 - resolution 960x480
 
-## Environment 
-- 
+## Screenshots for Milestone2
+- https://drive.google.com/drive/folders/1LXjcMTeBrHbOERKU5WTjVh3MWxG7T_q3?usp=sharing
 
 ## Yolo
 ### Data annotation
@@ -73,17 +73,25 @@ pip install -r requirements.txt
 ```
 - to run with the filtered data
 ```bash
-roslaunch perception_pkg object_detector.launch confidence_threshold:=0.4 person_num:=2 car_num:=1 cone_num:=1  use_encoder:=true
+roslaunch perception_pkg object_detector.launch use_encoder:=true
 ```
 - to send bounding boxes msgs
 ```bash
-roslaunch perception_pkg object_detector.launch confidence_threshold:=0.4 person_num:=2 car_num:=1 cone_num:=1 use_depth:=true
-
-
+roslaunch perception_pkg object_detector.launch  use_depth:=true
 ```
-- then don't forget to build the package (I hope it works)
-- also put like an empty folder called include if building caused an issue
-- make sure to launch with the number of the main three classes : person, cone, car, in order to get their percision
+- to visualize only percsion of an object (enter how many in the scene)
+```bash
+roslaunch perception_pkg object_detector.launch  car_num:=2 
+```
+```bash
+roslaunch perception_pkg object_detector.launch  person_num:=2 
+```
+```bash
+roslaunch perception_pkg object_detector.launch  cone_num:=2 
+```
+- then don't forget to build the package
+- also put an empty folder called include if building caused an issue
+
 
 ## Next Steps:
 - ~~get new data with different scene settings and lightings and anotate them. (usless cuz of greyscale but might try diff lightings)~~
