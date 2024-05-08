@@ -30,7 +30,7 @@ class ObjectDetector:
         img_topic_name = rospy.get_param("~image_rgb_topic_name", default="/image")
         depth_topic_name = rospy.get_param("~image_depth_topic_name", default="/image_depth")
         odom_topic_name = rospy.get_param("~odom_topic_name", default="/odom")
-        encoder_topic_name = rospy.get_param("~encoder_topic_name", default="/encoder_state_estimation")
+        estimator_topic_name = rospy.get_param("~estimator_topic_name", default="/estimator_topic_name")
         self.use_depth = rospy.get_param("~use_depth", default=False)
         self.use_tracking = rospy.get_param("~use_tracking", default=False)
         self.use_encoder = rospy.get_param("~use_encoder", default=False)
@@ -39,6 +39,7 @@ class ObjectDetector:
         self.res_x = rospy.get_param("~resolution_x", default=960)
         self.res_y = rospy.get_param("~resolution_y", default=480)
         #initialize variables
+        self.car_pos_recieved = False
         self.new_image_received = False
         self.new_depth_received = False
         self.depth_data = None
@@ -58,12 +59,13 @@ class ObjectDetector:
         #intalize puplishers and subscribers
         self.image_pub = rospy.Publisher('/detected_image', Image, queue_size=1)
         if self.use_depth:
+            self.depth_sub = rospy.Subscriber(depth_topic_name, Image, self.depth_callback)
             self.bb_pub = rospy.Publisher('/bounding_boxes', bounding_box_array, queue_size=1)
         #self.centroid_pub = rospy.Publisher('/centroid', PointStamped, queue_size=1)
         self.image_sub = rospy.Subscriber(img_topic_name, Image, self.image_callback)
-        self.depth_sub = rospy.Subscriber(depth_topic_name, Image, self.depth_callback)
+        
         if self.use_encoder:
-            self.encoder_sub = rospy.Subscriber(encoder_topic_name, Odometry, self.encoder_callback)
+            self.encoder_sub = rospy.Subscriber(estimator_topic_name, Odometry, self.encoder_callback)
         else:
             self.odom_sub = rospy.Subscriber(odom_topic_name, Odometry, self.odom_callback)
 
@@ -99,6 +101,7 @@ class ObjectDetector:
                                         [0, 1, 0, y],
                                         [0, 0, 1, z],
                                         [0, 0, 0, 1]])
+        self.car_pos_recieved = True
 
     def encoder_callback(self, msg):
         # construct transformation matrix from odom data
@@ -111,6 +114,7 @@ class ObjectDetector:
                                     [0, 1, 0, y],
                                     [0, 0, 1, z],
                                     [0, 0, 0, 1]])
+        self.car_pos_recieved = True
         
     def calc_intrinsic_camera_info(self):
         # get horizontal and vertical field of view
@@ -125,7 +129,7 @@ class ObjectDetector:
                 
     def run(self):
         # run only if new image and depth data is received
-        if self.raw_cv2_img is not None and self.new_image_received and self.new_depth_received and not self.base_map_tf is None: 
+        if self.new_image_received and (not self.use_depth or self.new_depth_received) and self.car_pos_recieved: 
             if self.old_ros_img is not None and (self.raw_ros_image.header == self.old_ros_img.header):
                 rospy.logdebug(f"called on same image!!")   
             else:
@@ -133,7 +137,7 @@ class ObjectDetector:
                 self.new_depth_received = False
                 bbs_msg = self.create_bounding_boxes()
                 #save image
-                cv2.imwrite(str(FILE.parents[0].resolve())+"/car.jpg", self.output_cv2_img)
+                #cv2.imwrite(str(FILE.parents[0].resolve())+f"/city_{rospy.Time.now()}.jpg", self.output_cv2_img)
                 self.ros_image = self.bridge.cv2_to_imgmsg(self.output_cv2_img, 'bgr8')             
                 #publish only if bounding boxes are detected
                 if bbs_msg is not None:
