@@ -109,7 +109,7 @@ class ObjectDetector:
         #translation components
         x = msg.pose.pose.position.x
         y = msg.pose.pose.position.y
-        z = msg.pose.pose.position.z + 0.869
+        z = msg.pose.pose.position.z 
         self.base_map_tf = np.array([[1, 0, 0, x],
                                     [0, 1, 0, y],
                                     [0, 0, 1, z],
