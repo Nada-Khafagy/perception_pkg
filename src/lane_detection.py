@@ -7,7 +7,7 @@ import numpy as np  # NumPy library for numerical computations
 from std_msgs.msg import MultiArrayDimension, Float32MultiArray # ROS message fro transferring lane coordinates
 from sensor_msgs.msg import Image  # ROS message type for images
 from nav_msgs.msg import Odometry # ROS message type for odometry
-from cv_bridge import CvBridge, CvBridgeError  # CvBridge for converting between ROS Image messages and OpenCV images
+from cv_bridge import CvBridge  # CvBridge for converting between ROS Image messages and OpenCV images
 from tf.transformations import quaternion_matrix
 
 # Define the LaneDetection class
@@ -45,7 +45,7 @@ class LaneDetection:
         
         # Subscribe to the raw camera image and depth map topics from CoppeliaSim 
         self.image_sub = rospy.Subscriber(image_rgb_topic_name, Image, self.image_callback)
-        self.depth_sub = rospy.Subscriber(image_depth_topic_name, Image, self.depth_callback)
+        # self.depth_sub = rospy.Subscriber(image_depth_topic_name, Image, self.depth_callback)
 
         # Subscribe to the vehicle's odometry topic to get the vehicle's pose
         self.odom_sub = rospy.Subscriber(odom_topic_name, Odometry, self.odom_callback)
@@ -222,8 +222,8 @@ class LaneDetection:
         if lines is not None:
             self.filter_lines(lines)
         # Draw the detected lines on the original image
-        # img = self.draw_lines(img)
-        # return img
+        img = self.draw_lines(img)
+        return img
     
     def publish_lines(self, lines):
         # Initialize the msg object
@@ -251,11 +251,11 @@ class LaneDetection:
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
 
         # Process the image
-        self.process(cv_image)
-        # processed_image = self.process(cv_image)
+        # self.process(cv_image)
+        processed_image = self.process(cv_image)
 
         # Publish the processed image
-        # self.image_pub.publish(self.bridge.cv2_to_imgmsg(processed_image, encoding="rgb8"))
+        self.image_pub.publish(self.bridge.cv2_to_imgmsg(processed_image, encoding="rgb8"))
 
     # Callback function to handle incoming depth maps
     def depth_callback(self, msg):

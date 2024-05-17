@@ -1,0 +1,36 @@
+<?xml version='1.0'?>
+
+<launch>
+
+    <!-- Input Arguments -->
+    <arg name="odom_topic_name" default="/odom" />
+    <arg name="image_rgb_topic_name" default="/image" />
+    <arg name="image_depth_topic_name" default="/image_depth" />
+    <arg name="prespective_angle_x" default="60" />
+    <arg name="resolution_x" default="960" />
+    <arg name="resolution_y" default="480" />
+    <arg name="use_depth" default="true" />
+    <arg name="use_less_classes" default="false" />
+
+    <!-- Launch Lane Detector Node -->
+    <include file="$(find perception_pkg)/launch/lane_detector.launch" >
+        <arg name="odom_topic_name" value="$(arg odom_topic_name)" />
+        <arg name="image_rgb_topic_name" value="$(arg image_rgb_topic_name)" />
+        <arg name="image_depth_topic_name" value="$(arg image_depth_topic_name)" />
+        <arg name="prespective_angle_x" value="$(arg prespective_angle_x)" />
+        <arg name="resolution_x" value="$(arg resolution_x)" />
+        <arg name="resolution_y" value="$(arg resolution_y)" />
+    </include>
+
+    <!-- Launch Object Detector Node -->
+    <include file="$(find perception_pkg)/launch/object_detector.launch" >
+        <arg name="odom_topic_name" value="$(arg odom_topic_name)" />
+        <arg name="image_rgb_topic_name" value="$(arg image_rgb_topic_name)" />
+        <arg name="image_depth_topic_name" value="$(arg image_depth_topic_name)" />
+        <arg name="prespective_angle_x" value="$(arg prespective_angle_x)" />
+        <arg name="resolution_x" value="$(arg resolution_x)" />
+        <arg name="resolution_y" value="$(arg resolution_y)" />
+        <arg name="use_depth" value="$(arg use_depth)" />
+        <arg name="use_less_classes" value="$(arg use_less_classes)" />
+    </include>
+</launch>

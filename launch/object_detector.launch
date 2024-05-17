@@ -2,40 +2,45 @@
 
 <launch>
     <!-- Input Arguments -->
-    <arg name="confidence_threshold" default="0.5" />
-    <arg name="iou_threshold" default="0.6" />
-    <arg name="weights_path" default="/model/best.pt" />
-    <arg name="use_depth" default="false" />
-    <arg name="use_tracking" default="false" />
-    <arg name="use_estimator" default="false" />
+    <arg name="odom_topic_name" default="/odom" />
     <arg name="image_rgb_topic_name" default="/image" />
     <arg name="image_depth_topic_name" default="/image_depth" />
-    <arg name="odom_topic_name" default="/odom" />
-    <arg name="estimator_topic_name" default="/encoder_state_estimation" />
+
     <arg name="prespective_angle_x" default="85" />    
     <arg name="resolution_x" default="960" />
     <arg name="resolution_y" default="480" />
+    
+    <arg name="use_depth" default="false" />
     <arg name="use_less_classes" default="false" />
+    <arg name="use_tracking" default="false" />
+    
+    <arg name="confidence_threshold" default="0.5" />
+    <arg name="iou_threshold" default="0.6" />
+    <arg name="weights_path" default="/model/best.pt" />
 
+    <arg name="use_estimator" default="false" />
+    <arg name="estimator_topic_name" default="/encoder_state_estimation" />
 
     <!-- launch object detector node-->
     <node pkg="perception_pkg"  name="object_detection" type="object_detection.py" output="screen">
+        <param name="odom_topic_name" value="$(arg odom_topic_name)" />
+        <param name="image_rgb_topic_name" value="$(arg image_rgb_topic_name)" />
+        <param name="image_depth_topic_name" value="$(arg image_depth_topic_name)" />
+        
+        <param name="prespective_angle_x" value="$(arg prespective_angle_x)" />
+        <param name="resolution_x" value="$(arg resolution_x)" />
+        <param name="resolution_y" value="$(arg resolution_y)" />
+        
+        <param name="use_depth" value="$(arg use_depth)"/>
+        <param name="use_less_classes" value="$(arg use_less_classes)"/>
+        <param name="use_tracking" value="$(arg use_tracking)"/>
+        
         <param name="confidence_threshold" value="$(arg confidence_threshold)" />
         <param name="iou_threshold" value="$(arg iou_threshold)" />
         <param name="weights_path" value="$(arg weights_path)" />
-        <param name="use_depth" value="$(arg use_depth)"/>
-        <param name="use_tracking" value="$(arg use_tracking)"/>
+
         <param name="use_estimator" value="$(arg use_estimator)"/>
-        <param name="use_less_classes" value="$(arg use_less_classes)"/>
         <param name="estimator_topic_name" value="$(arg estimator_topic_name)" />
-
-        <param name="image_rgb_topic_name" value="$(arg image_rgb_topic_name)" />
-        <param name="image_depth_topic_name" value="$(arg image_depth_topic_name)" />
-        <param name="odom_topic_name" value="$(arg odom_topic_name)" />
-        <param name="resolution_x" value="$(arg resolution_x)" />
-        <param name="resolution_y" value="$(arg resolution_y)" />
-        <param name="prespective_angle_x" value="$(arg prespective_angle_x)" />
-
     </node>
 
 
