@@ -1,8 +1,3 @@
-
-```diff
-- Warning: Shiko you are not allowed to edit anything in this repo focus on your tasks thank you.
-```
-
 # Perception
 The perception of the vehicle will be divided into two parts: 
 - lane detection (Mina)
