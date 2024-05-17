@@ -40,7 +40,7 @@ This milestone will be testing mainly! and seeing how the integration of image p
 
 ## Camera specification in Coppeliasim
 - frequency = 20 Hz
-- near/far plane = [0.1, 10-0] 
+- near/far plane = [0.01, 1000] 
 - perspective angle = 85.0deg
 - resolution 960x480
 
