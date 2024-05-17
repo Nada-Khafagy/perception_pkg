@@ -48,7 +48,7 @@ class ObjectDetector:
         self.output_cv2_img = None
         self.raw_ros_image = None
         self.ros_image = None
-        self.old_ros_img = None #to make sure the same image is not detected on twice 
+        self.old_ros_img = None  
         self.is_shutdown = False
         self.compact_classes_names = ["car", "person", "traffic cone"] #hardcodded for now
         pkg_path = str(FILE.parents[0].parents[0].resolve())
@@ -65,7 +65,7 @@ class ObjectDetector:
         self.image_sub = rospy.Subscriber(img_topic_name, Image, self.image_callback)
         
         if self.use_encoder:
-            self.encoder_sub = rospy.Subscriber(estimator_topic_name, Odometry, self.encoder_callback)
+            self.encoder_sub = rospy.Subscriber(estimator_topic_name, Odometry, self.odom_callback)
         else:
             self.odom_sub = rospy.Subscriber(odom_topic_name, Odometry, self.odom_callback)
 
@@ -85,7 +85,6 @@ class ObjectDetector:
 
     def depth_callback(self, msg):   
         self.depth_data = np.frombuffer(msg.data, dtype=np.float32).reshape((msg.height, msg.width))
-        #self.depth_data = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
         self.depth_data = np.transpose(self.depth_data)
         self.new_depth_received = True
         self.run()
@@ -98,23 +97,11 @@ class ObjectDetector:
         y = msg.pose.pose.position.y
         z = msg.pose.pose.position.z
         self.base_map_tf = np.array([[1, 0, 0, x],
-                                        [0, 1, 0, y],
-                                        [0, 0, 1, z],
-                                        [0, 0, 0, 1]])
-        self.car_pos_recieved = True
-
-    def encoder_callback(self, msg):
-        # construct transformation matrix from odom data
-        msg: Odometry
-        #translation components
-        x = msg.pose.pose.position.x
-        y = msg.pose.pose.position.y
-        z = msg.pose.pose.position.z 
-        self.base_map_tf = np.array([[1, 0, 0, x],
                                     [0, 1, 0, y],
                                     [0, 0, 1, z],
                                     [0, 0, 0, 1]])
         self.car_pos_recieved = True
+
         
     def calc_intrinsic_camera_info(self):
         # get horizontal and vertical field of view
@@ -141,12 +128,11 @@ class ObjectDetector:
                 self.ros_image = self.bridge.cv2_to_imgmsg(self.output_cv2_img, 'bgr8')             
                 #publish only if bounding boxes are detected
                 if bbs_msg is not None:
-                    #rospy.loginfo(f"Publishing {len(bbs_msg.bbs_array)} bounding boxes")
                     self.bb_pub.publish(bbs_msg)          
             self.image_pub.publish(self.ros_image)
             self.old_ros_img = self.raw_ros_image
             
-
+    #modified version of predict in the ultralytics library
     def create_bounding_boxes(self):
         model_results = self.model(self.raw_cv2_img, conf=self.conf, iou=self.iou, verbose=False)
         results = model_results[0]
@@ -157,7 +143,7 @@ class ObjectDetector:
         pred_probs, show_probs = results.probs, True
         annotator = Annotator(
             deepcopy(results.orig_img) ,
-            pil = ((pred_probs is not None and show_probs)),  # Classify tasks default to pil=True
+            pil = ((pred_probs is not None and show_probs)), 
             example=names,
         )            
         if pred_boxes is not None:
@@ -165,8 +151,6 @@ class ObjectDetector:
                 bbs_msg = bounding_box_array()
                 bbs_msg.header.stamp = rospy.Time.now()
                 bbs_msg.header.frame_id = 'bounding_boxes'   
-
-            
             for bbox in reversed(pred_boxes):
                 c, conf, id = int(bbox.cls), float(bbox.conf) , None if bbox.id is None else int(bbox.id.item())
                 name = ("" if id is None else f"id:{id} ") + names[c] 
@@ -180,7 +164,6 @@ class ObjectDetector:
                 centroid_y = (box[1] + box[3]) / 2
                 centroid = (int(centroid_x), int(centroid_y))
                 annotator.draw_specific_points([centroid],indices=[0])
-                
                 #only create msg with data in 3d if needed
                 if self.use_depth:
                     bb_msg = self.create_bounding_box_msg(bbox, results.names)
@@ -203,8 +186,6 @@ class ObjectDetector:
 
     def create_bounding_box_msg(self, bbox, class_names):
         bb_msg = bounding_box()
-        bb_msg.header.stamp = rospy.Time.now()
-        bb_msg.header.frame_id = 'bounding_box'
         #the box coordinates in (left, top, right, bottom) format
         half_bbox = bbox.xyxy[0].half().tolist()
         x1, y1, x2, y2 = half_bbox[0:4]
@@ -216,15 +197,11 @@ class ObjectDetector:
         camera_point = self.get_point_wrt_camera_frame(x, y)
         base_link_point = self.get_point_wrt_base_link(camera_point)
         map_point = self.get_point_wrt_map(base_link_point)
-        #print(f"map point: {map_point} \n of class: {bb_msg.class_name}")
-        #bb_msg.centroid.header.stamp = rospy.Time.now()
-        #bb_msg.centroid.header.frame_id = 'map'
         if map_point is None:
             return None
         bb_msg.centroid.x = map_point.point.x
         bb_msg.centroid.y = map_point.point.y
         bb_msg.centroid.z = map_point.point.z
-        #self.centroid_pub.publish(bb_msg.centroid)
         #bounding box width and height in world coordinates
         width, length = self.get_width_length_in_world_coordinates(x1, y1, x2, y2, bb_msg.centroid.z)
         bb_msg.width = width
@@ -252,16 +229,6 @@ class ObjectDetector:
         if camera_point is None:
             rospy.loginfo("Camera point is None")
             return None
-        #rotation components
-        #rx = -0.7372773368101609
-        #ry = 2.6837016371639234e-16
-        #rz = -2.463260808134392e-16
-        #rw = 0.67559020761562
-        #rotation_matrix = np.array([
-        #    [1 - 2*(ry**2 + rz**2), 2*(rx*ry - rw*rz), 2*(rx*rz + rw*ry)],
-        #    [2*(rx*ry + rw*rz), 1 - 2*(rx**2 + rz**2), 2*(ry*rz - rw*rx)],
-        #    [2*(rx*rz - rw*ry), 2*(ry*rz + rw*rx), 1 - 2*(rx**2 + ry**2)]
-        #])
         #construct rotation matrix
         #rotation around the x-axes but not exactly 90deg, can be edited from coppeliasim but leave it for now
         rotation_matrix = np.array([[ 1.00000000e+00, -6.28955030e-17,  7.25837783e-16],
@@ -316,7 +283,6 @@ class ObjectDetector:
         map_point3 = self.get_point_wrt_map(self.get_point_wrt_base_link(camera_point3))
         #Bottom right point
         camera_point4 = self.get_point_wrt_camera_frame(x2, y2)
-        map_point4 = self.get_point_wrt_map(self.get_point_wrt_base_link(camera_point4))
         #use depth of the center to have the bounding box in the same plane
         point_TL = np.array([map_point1.point.x, map_point1.point.y, z])
         point_TR = np.array([map_point2.point.x, map_point2.point.y, z])
