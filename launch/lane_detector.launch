@@ -6,18 +6,43 @@
   <arg name="odom_topic_name" default="/odom" />
   <arg name="image_rgb_topic_name" default="/image" />
   <arg name="image_depth_topic_name" default="/image_depth" />
+
   <arg name="prespective_angle_x" default="60" />
   <arg name="resolution_x" default="960" />
   <arg name="resolution_y" default="480" />
+  <arg name="cam_to_veh_quat" default="[-0.7313537016190877, 4.1805272689068336e-07, 3.898404044640546e-07, 0.6819983600623476]" />
+  <arg name="cam_to_veh_offset" default="[0.0, 0.3, 0.664]" />
+  
+  <arg name="image_color_threshold_min" default="235" />
+  <arg name="lane_line_min_length" default="75" />
+  <arg name="lane_line_max_dist" default="50" /> <!-- max distance between lines to be considered part of the same lane -->
+  <arg name="hough_threshold" default="25" />
+  <arg name="hough_min_length" default="30" />
+  <arg name="hough_max_gap" default="5" />
+
+  <arg name="publish_lane_image" default="false" />
 
   <!-- Launch Lane Detector Node -->
-  <node pkg="lane_detection_canny" type="lane_detection.py" name="lane_detection" output="screen">
+  <node pkg="perception_pkg" type="lane_detection.py" name="lane_detection" output="screen">
+    <param name="odom_topic_name" value="$(arg odom_topic_name)" />
     <param name="image_rgb_topic_name" value="$(arg image_rgb_topic_name)" />
     <param name="image_depth_topic_name" value="$(arg image_depth_topic_name)" />
-    <param name="odom_topic_name" value="$(arg odom_topic_name)" />
+    
     <param name="prespective_angle_x" value="$(arg prespective_angle_x)" />
     <param name="resolution_x" value="$(arg resolution_x)" />
     <param name="resolution_y" value="$(arg resolution_y)" />
+    <rosparam param="cam_to_veh_quat" subst_value="True">$(arg cam_to_veh_quat) </rosparam>
+    <rosparam param="cam_to_veh_offset" subst_value="True">$(arg cam_to_veh_offset) </rosparam>
+
+    <param name="image_color_threshold_min" value="$(arg image_color_threshold_min)" />
+    <param name="lane_line_min_length" value="$(arg lane_line_min_length)" />
+    <param name="lane_line_max_dist" value="$(arg lane_line_max_dist)" />
+    <param name="hough_threshold" value="$(arg hough_threshold)" />
+    <param name="hough_min_length" value="$(arg hough_min_length)" />
+    <param name="hough_max_gap" value="$(arg hough_max_gap)" />
+
+    <param name="publish_lane_image" value="$(arg publish_lane_image)" />
+
   </node>
   
 </launch>

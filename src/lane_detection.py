@@ -17,12 +17,24 @@ class LaneDetection:
         rospy.init_node('lane_detection')
 
         # Load in parameters from the ROS parameter server
-        image_rgb_topic_name = rospy.get_param("/lane_detection/image_rgb_topic_name")
-        image_depth_topic_name = rospy.get_param("/lane_detection/image_depth_topic_name")
-        odom_topic_name = rospy.get_param("/lane_detection/odom_topic_name")
-        prespective_angle_x = rospy.get_param("/lane_detection/prespective_angle_x")
-        resolution_x = rospy.get_param("/lane_detection/resolution_x")
-        resolution_y = rospy.get_param("/lane_detection/resolution_y")
+        odom_topic_name = rospy.get_param("/lane_detection/odom_topic_name", default="/odom")
+        image_rgb_topic_name = rospy.get_param("/lane_detection/image_rgb_topic_name", default="/image")
+        image_depth_topic_name = rospy.get_param("/lane_detection/image_depth_topic_name", default="/image_depth")
+        
+        prespective_angle_x = rospy.get_param("/lane_detection/prespective_angle_x", default=60.0)
+        resolution_x = rospy.get_param("/lane_detection/resolution_x", default=960)
+        resolution_y = rospy.get_param("/lane_detection/resolution_y", default=480)
+        cam_to_veh_quat = rospy.get_param("/lane_detection/cam_to_veh_quat", default=[0.0, 0.0, 0.0, 1.0])
+        cam_to_veh_offset = rospy.get_param("/lane_detection/cam_to_veh_offset", default=[0.0, 0.0, 0.0])
+
+        self.image_color_threshold_min = rospy.get_param("/lane_detection/image_color_threshold_min", default=220)
+        self.lane_line_min_length = rospy.get_param("/lane_detection/lane_line_min_length", default=75)
+        self.lane_line_max_dist = rospy.get_param("/lane_detection/lane_line_max_dist", default=50)
+        self.hough_threshold = rospy.get_param("/lane_detection/hough_threshold", default=25)
+        self.hough_min_length = rospy.get_param("/lane_detection/hough_min_length", default=30)
+        self.hough_max_gap = rospy.get_param("/lane_detection/hough_max_gap", default=5)
+        
+        self.publish_lane_image = rospy.get_param("/lane_detection/publish_lane_image", default=False)
 
         # Store needed camera parameters for image -> camera frame transformation
         self.tan_prespective_x = np.tan(np.deg2rad(prespective_angle_x/2))
@@ -30,12 +42,11 @@ class LaneDetection:
                                         np.minimum(resolution_x/resolution_y, resolution_y/resolution_x))
                 
         # Initialize a NumPy array to store extracted lines
-        self.lane_lines = np.zeros((1, 1, 4), dtype=np.int32) 
+        self.lane_lines = np.zeros((1, 4), dtype=np.int32) 
 
         # Initialize a NumPy array to store the transformation from camera -> vehicle frame
-        self.cam_to_veh_transform = quaternion_matrix(quaternion=[-0.7372773368099708, 4.214387821499521e-07, 
-                                                                  3.861774118818495e-07, 0.6755902076155859])
-        self.cam_to_veh_transform[:3, 3] = np.array([0.0, 0.3, 0.664])
+        self.cam_to_veh_transform = quaternion_matrix(quaternion=cam_to_veh_quat)
+        self.cam_to_veh_transform[:3, 3] = np.array(cam_to_veh_offset)
         
         # Initialize a NumPy array to store the transformation from camera -> global frame
         self.cam_to_glob_transform = np.zeros((4, 4))
@@ -45,21 +56,21 @@ class LaneDetection:
         
         # Subscribe to the raw camera image and depth map topics from CoppeliaSim 
         self.image_sub = rospy.Subscriber(image_rgb_topic_name, Image, self.image_callback)
-        # self.depth_sub = rospy.Subscriber(image_depth_topic_name, Image, self.depth_callback)
+        self.depth_sub = rospy.Subscriber(image_depth_topic_name, Image, self.depth_callback)
 
         # Subscribe to the vehicle's odometry topic to get the vehicle's pose
         self.odom_sub = rospy.Subscriber(odom_topic_name, Odometry, self.odom_callback)
         
         # Publisher for the processed image
-        self.image_pub = rospy.Publisher("/lane_detection/image_processed", Image, queue_size=1)
+        self.image_pub = rospy.Publisher("/lane_detection/image_processed", Image, queue_size=0)
 
         # Publisher for the lane lines
-        self.lane_pub = rospy.Publisher("/lane_detection/lanes", Float32MultiArray, queue_size=1)
+        self.lane_pub = rospy.Publisher("/lane_detection/lanes", Float32MultiArray, queue_size=0)
 
     # Method to define the region of interest in the image
     def roi(self, image, vertices):
         # Apply binary filter to image to keep only close-to-white pixels (most likely road markers)
-        threshold_min, threshold_max = 220, 255 
+        threshold_min, threshold_max = self.image_color_threshold_min, 255 
         _, threshold_img = cv2.threshold(image, threshold_min, threshold_max, cv2.THRESH_BINARY)
 
         # Create a mask image of the same size as the input image
@@ -73,123 +84,109 @@ class LaneDetection:
         return cropped_img
 
     def get_line_length(self, hough_line):
-        return np.sqrt((hough_line[0, 3] - hough_line[0, 1])**2 + (hough_line[0, 2] - hough_line[0, 0])**2)
+        return np.sqrt((hough_line[3] - hough_line[1])**2 + (hough_line[2] - hough_line[0])**2)
     
     def get_lines_dist(self, hough_line_1, hough_line_2):
         # Return the minimum distance from all four possible point pairs
-        dist_1_1 = np.sqrt((hough_line_2[0, 1] - hough_line_1[0, 1])**2 + (hough_line_2[0, 0] - hough_line_1[0, 0])**2)
-        dist_1_2 = np.sqrt((hough_line_2[0, 1] - hough_line_1[0, 3])**2 + (hough_line_2[0, 0] - hough_line_1[0, 2])**2)
-        dist_2_1 = np.sqrt((hough_line_2[0, 3] - hough_line_1[0, 1])**2 + (hough_line_2[0, 2] - hough_line_1[0, 0])**2)
-        dist_2_2 = np.sqrt((hough_line_2[0, 3] - hough_line_1[0, 3])**2 + (hough_line_2[0, 2] - hough_line_1[0, 2])**2)
+        dist_1_1 = np.sqrt((hough_line_2[1] - hough_line_1[1])**2 + (hough_line_2[0] - hough_line_1[0])**2)
+        dist_1_2 = np.sqrt((hough_line_2[1] - hough_line_1[3])**2 + (hough_line_2[0] - hough_line_1[2])**2)
+        dist_2_1 = np.sqrt((hough_line_2[3] - hough_line_1[1])**2 + (hough_line_2[2] - hough_line_1[0])**2)
+        dist_2_2 = np.sqrt((hough_line_2[3] - hough_line_1[3])**2 + (hough_line_2[2] - hough_line_1[2])**2)
 
         return np.min(np.array([dist_1_1, dist_1_2, dist_2_1, dist_2_2]))
     
-    def get_next_line(self, target_left, target_right, explored_lines, hough_lines):
-        # Find the nearest line to either of the left or right lines
-        min_dist = 50
-        min_line = None
-        min_is_left = True
-        for line in hough_lines:
-            if not any(np.array_equal(line, explored_line) for explored_line in explored_lines):
-                dist_left = self.get_lines_dist(target_left, line)
-                dist_right = self.get_lines_dist(target_right, line)
-                if (dist_left < min_dist) and (dist_left < dist_right):
-                    min_line = line
-                    min_dist = dist_left
-                    min_is_left = True
-                elif (dist_right < min_dist) and (dist_right < dist_left):
-                    min_line = line
-                    min_dist = dist_right
-                    min_is_left = False
-
-        # Add nearest line and return it
-        if min_line is not None:
-            explored_lines.append(min_line)
-            if min_is_left:
-                return min_line, target_right
-            else:
-                return target_left, min_line
+    def pairwise_line_distances(self, hough_lines):
+        # Reshape lines to (n, 2, 2) where each line is represented by two endpoints (x1, y1), (x2, y2)
+        line_points = hough_lines.reshape(-1, 2, 2)
         
-        return None, None
-    
-    def get_next_line_left(self, target_left, explored_left, hough_lines):
-        # Find the nearest line to the left line
-        min_dist = 50
-        min_line = None
-        for line in hough_lines:
-            if not any(np.array_equal(line, explored_line) for explored_line in explored_left):
-                dist_left = self.get_lines_dist(target_left, line)
-                if (dist_left < min_dist):
-                    min_line = line
-                    min_dist = dist_left
-
-        # Add nearest line and return it
-        if min_line is not None:
-            explored_left.append(min_line)
+        # Expand dimensions to compute pairwise distances
+        expanded_lines_1 = line_points[:, None, :, :]  # shape (n, 1, 2, 2)
+        expanded_lines_2 = line_points[None, :, :, :]  # shape (1, n, 2, 2)
         
-        return min_line
-    
-    def get_next_line_right(self, target_right, explored_right, hough_lines):
-        # Find the nearest line to the right line
-        min_dist = 50
-        min_line = None
-        for line in hough_lines:
-            if not any(np.array_equal(line, explored_line) for explored_line in explored_right):
-                dist_right = self.get_lines_dist(target_right, line)
-                if (dist_right < min_dist):
-                    min_line = line
-                    min_dist = dist_right
+        # Compute pairwise distances between all endpoints of each pair of lines
+        dist_squared = np.sum((expanded_lines_1[:, :, :, None, :] - expanded_lines_2[:, :, None, :, :]) ** 2, axis=-1)
+        
+        # Compute the minimum distance for each pair of lines
+        min_distances = np.sqrt(np.min(dist_squared, axis=(2, 3)))
+        np.fill_diagonal(min_distances, np.inf)
+        
+        return min_distances
 
-        # Add nearest line and return it
-        if min_line is not None:
-            explored_right.append(min_line)
-            
-        return min_line
 
     def filter_lines(self, hough_lines):
         # Get gradient of left-most and right-most lines
-        left_index = np.argmin(np.minimum(hough_lines[:, 0, 0], hough_lines[:, 0, 2]))
-        right_index = np.argmax(np.maximum(hough_lines[:, 0, 0], hough_lines[:, 0, 2]))
+        left_index = np.argmin(np.minimum(hough_lines[:, 0], hough_lines[:, 2]))
+        right_index = np.argmax(np.maximum(hough_lines[:, 0], hough_lines[:, 2]))
         left_line = hough_lines[left_index]
         right_line = hough_lines[right_index]
         left_length = self.get_line_length(left_line)
         right_length = self.get_line_length(right_line)
-        line_min_length = 75
-
-        # Get neighbors of both the right and left-most line
-        lane_lines = []
-        if (left_length > line_min_length) and (right_length > line_min_length):
-            lane_lines.append(left_line)
-            lane_lines.append(right_line)
-            target_left = left_line
-            target_right = right_line
-
-            while target_left is not None:
-                target_left, target_right = self.get_next_line(target_left, target_right, lane_lines, hough_lines)
+        line_min_length = self.lane_line_min_length
         
+        # Get the distances between all pairs of lines
+        min_distances = np.ma.masked_array(self.pairwise_line_distances(hough_lines), mask=False)
+        lane_lines = np.zeros_like(hough_lines)
+        
+        # Get neighbors of both the right and left-most line
+        if (left_length > line_min_length) and (right_length > line_min_length):
+            lane_lines[0], lane_lines[1] = left_line, right_line
+            num_lines, min_distance = 2, 0
+
+            while (num_lines < lane_lines.shape[0]) and (min_distance < self.lane_line_max_dist):
+                left_neighbor = min_distances[left_index, :].argmin(axis=0, fill_value=np.inf)
+                right_neighbor = min_distances[right_index, :].argmin(axis=0, fill_value=np.inf)
+                if min_distances[left_index, left_neighbor] < min_distances[right_index, right_neighbor]:
+                    min_distance = min_distances[left_index, left_neighbor]
+                    min_distances.mask[:, left_index] = True
+                    lane_lines[num_lines] = hough_lines[left_neighbor]
+                    left_index = left_neighbor
+                    num_lines += 1
+                else:
+                    min_distance = min_distances[right_index, right_neighbor]
+                    min_distances.mask[:, right_index] = True
+                    lane_lines[num_lines] = hough_lines[right_neighbor]
+                    right_index = right_neighbor
+                    num_lines += 1
+
+            self.lane_lines = lane_lines[:num_lines-1]
+
+        # Get neighbors of left-most line only
         elif (left_length > line_min_length):
-            lane_lines.append(left_line)
-            target_left = left_line
+            lane_lines[0] = left_line
+            num_lines, min_distance = 1, 0
 
-            while target_left is not None:
-                target_left = self.get_next_line_left(target_left, lane_lines, hough_lines)
+            while (num_lines < lane_lines.shape[0]) and (min_distance < self.lane_line_max_dist):
+                left_neighbor = min_distances[left_index, :].argmin(axis=0, fill_value=np.inf)
+                min_distance = min_distances[left_index, left_neighbor]
+                min_distances.mask[:, left_index] = True
+                lane_lines[num_lines] = hough_lines[left_neighbor]
+                left_index = left_neighbor
+                num_lines += 1
 
+            self.lane_lines = lane_lines[:num_lines-1]
+        
+        # Get neighbors of right-most line only
         elif (right_length > line_min_length):
-            lane_lines.append(right_line)
-            target_right = right_line
+            lane_lines[0] = right_line
+            num_lines, min_distance = 1, 0
 
-            while target_right is not None:
-                target_right = self.get_next_line_right(target_right, lane_lines, hough_lines)
+            while (num_lines < lane_lines.shape[0]) and (min_distance < self.lane_line_max_dist):
+                right_neighbor = min_distances[right_index, :].argmin(axis=0, fill_value=np.inf)
+                min_distance = min_distances[right_index, right_neighbor]
+                min_distances.mask[:, right_index] = True
+                lane_lines[num_lines] = hough_lines[right_neighbor]
+                right_index = right_neighbor
+                num_lines += 1
 
-        self.lane_lines = np.array(lane_lines)
-        # self.lane_lines = hough_lines
+            self.lane_lines = lane_lines[:num_lines-1]
+
 
     # Method to draw detected lines on the image
     def draw_lines(self, image):
         # Iterate over the detected lines
         for line in self.lane_lines:
             # Get the coordinates of line and draw onto image
-            x1, y1, x2, y2 = line[0]
+            x1, y1, x2, y2 = line
             cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
         return image
@@ -210,20 +207,31 @@ class LaneDetection:
         
         # Convert the image to grayscale
         gray_img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
         # Apply dilation to enhance edges
         gray_img = cv2.dilate(gray_img, kernel=np.ones((3, 3), np.uint8))
+
         # Extract the region of interest
         roi_img = self.roi(gray_img, roi_vertices)
+
         # Apply Canny edge detection
         canny = cv2.Canny(roi_img, 130, 220)
+
         # Detect lines using Hough transform
-        lines = cv2.HoughLinesP(canny, 1, np.pi/180, threshold=25, minLineLength=30, maxLineGap=5)
+        lines = cv2.HoughLinesP(canny, 1, np.pi/180, threshold=self.hough_threshold, 
+                                minLineLength=self.hough_min_length, maxLineGap=self.hough_max_gap)
+        lines = np.squeeze(lines) # Remove unnecessary 2nd dimension of length 1
+
         # Process detected lines to extract potential lane lines only
         if lines is not None:
             self.filter_lines(lines)
-        # Draw the detected lines on the original image
-        img = self.draw_lines(img)
-        return img
+
+        # Draw the detected lines on the original image if processed image is required
+        if self.publish_lane_image:
+            img = self.draw_lines(img)
+            return img
+        
+        return None
     
     def publish_lines(self, lines):
         # Initialize the msg object
@@ -251,11 +259,11 @@ class LaneDetection:
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
 
         # Process the image
-        # self.process(cv_image)
         processed_image = self.process(cv_image)
 
-        # Publish the processed image
-        self.image_pub.publish(self.bridge.cv2_to_imgmsg(processed_image, encoding="rgb8"))
+        # Publish the processed image if required
+        if self.publish_lane_image:
+            self.image_pub.publish(self.bridge.cv2_to_imgmsg(processed_image, encoding="rgb8"))
 
     # Callback function to handle incoming depth maps
     def depth_callback(self, msg):
@@ -267,10 +275,10 @@ class LaneDetection:
     
         # Get coordinates of all points in lane markers (in a flateneed array)
         if self.lane_lines.shape[0] > 0:
-            lines = np.empty((self.lane_lines.shape[0] * self.lane_lines.shape[2], ), dtype=np.float32)
+            lines = np.empty((self.lane_lines.shape[0] * self.lane_lines.shape[1], ), dtype=np.float32)
             for i, lane_line in enumerate(self.lane_lines):
                 # Get point coordinates and transform (u, v) coordinates into (x_img, y_img) in pixels
-                u1, v1, u2, v2 = lane_line[0]
+                u1, v1, u2, v2 = lane_line
                 x1, y1 = u1 - depth.shape[1]/2, v1 - depth.shape[0]/2
                 x2, y2 = u2 - depth.shape[1]/2, v2 - depth.shape[0]/2
 

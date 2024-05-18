@@ -24,21 +24,21 @@ class ObjectDetector:
     def __init__(self):
         rospy.init_node('object_detector', anonymous=True)
         self.bridge = CvBridge()
-        #get parameters
+
+        # Get parameters from the ROS parameter server
         self.conf = rospy.get_param("~confidence_threshold", default="0.5")  # NMS confidence threshold
         self.iou = rospy.get_param("~iou_threshold", default="0.6")  # NMS IoU threshold
         img_topic_name = rospy.get_param("~image_rgb_topic_name", default="/image")
         depth_topic_name = rospy.get_param("~image_depth_topic_name", default="/image_depth")
         odom_topic_name = rospy.get_param("~odom_topic_name", default="/odom")
-        estimator_topic_name = rospy.get_param("~estimator_topic_name", default="/estimator_topic_name")
         self.use_depth = rospy.get_param("~use_depth", default=False)
         self.use_tracking = rospy.get_param("~use_tracking", default=False)
-        self.use_encoder = rospy.get_param("~use_encoder", default=False)
         self.use_less_classes = rospy.get_param("~use_less_classes", default=False)
         self.perspective_angle = rospy.get_param("~prespective_angle_x", default=85.0)
         self.res_x = rospy.get_param("~resolution_x", default=960)
         self.res_y = rospy.get_param("~resolution_y", default=480)
-        #initialize variables
+        
+        # Initialize variables
         self.car_pos_recieved = False
         self.new_image_received = False
         self.new_depth_received = False
@@ -54,20 +54,18 @@ class ObjectDetector:
         pkg_path = str(FILE.parents[0].parents[0].resolve())
         weights_path = pkg_path + rospy.get_param('~weights_path', default="/model/best.pt")       
         self.model = YOLO(weights_path, verbose=True)
-        #get camera intrinsic parameters
+        
+        # Calculate camera intrinsic parameters
         self.calc_intrinsic_camera_info()         
-        #intalize puplishers and subscribers
+        
+        # Initialize puplishers and subscribers
         self.image_pub = rospy.Publisher('/detected_image', Image, queue_size=1)
         if self.use_depth:
             self.depth_sub = rospy.Subscriber(depth_topic_name, Image, self.depth_callback)
             self.bb_pub = rospy.Publisher('/bounding_boxes', bounding_box_array, queue_size=1)
         #self.centroid_pub = rospy.Publisher('/centroid', PointStamped, queue_size=1)
         self.image_sub = rospy.Subscriber(img_topic_name, Image, self.image_callback)
-        
-        if self.use_encoder:
-            self.encoder_sub = rospy.Subscriber(estimator_topic_name, Odometry, self.odom_callback)
-        else:
-            self.odom_sub = rospy.Subscriber(odom_topic_name, Odometry, self.odom_callback)
+        self.odom_sub = rospy.Subscriber(odom_topic_name, Odometry, self.odom_callback)
 
     def image_callback(self, msg):
         try:

@@ -18,9 +18,6 @@
     <arg name="iou_threshold" default="0.6" />
     <arg name="weights_path" default="/model/best.pt" />
 
-    <arg name="use_estimator" default="false" />
-    <arg name="estimator_topic_name" default="/encoder_state_estimation" />
-
     <!-- launch object detector node-->
     <node pkg="perception_pkg"  name="object_detection" type="object_detection.py" output="screen">
         <param name="odom_topic_name" value="$(arg odom_topic_name)" />
@@ -39,8 +36,6 @@
         <param name="iou_threshold" value="$(arg iou_threshold)" />
         <param name="weights_path" value="$(arg weights_path)" />
 
-        <param name="use_estimator" value="$(arg use_estimator)"/>
-        <param name="estimator_topic_name" value="$(arg estimator_topic_name)" />
     </node>
 
 
