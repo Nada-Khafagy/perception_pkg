@@ -6,10 +6,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from perception_pkg.msg import bounding_box,bounding_box_array
 from geometry_msgs.msg import Point
-from geometry_msgs.msg import PointStamped
 from nav_msgs.msg import Odometry
-import os
-import sys
 from copy import deepcopy
 from pathlib import Path
 from ultralytics import YOLO
@@ -37,7 +34,6 @@ class ObjectDetector:
         self.perspective_angle = rospy.get_param("~prespective_angle_x", default=85.0)
         self.res_x = rospy.get_param("~resolution_x", default=960)
         self.res_y = rospy.get_param("~resolution_y", default=480)
-        
         # Initialize variables
         self.car_pos_recieved = False
         self.new_image_received = False
@@ -48,7 +44,7 @@ class ObjectDetector:
         self.output_cv2_img = None
         self.raw_ros_image = None
         self.ros_image = None
-        self.old_ros_img = None  
+        self.old_ros_img = None
         self.is_shutdown = False
         self.compact_classes_names = ["car", "person", "traffic cone"] #hardcodded for now
         pkg_path = str(FILE.parents[0].parents[0].resolve())
@@ -197,9 +193,10 @@ class ObjectDetector:
         map_point = self.get_point_wrt_map(base_link_point)
         if map_point is None:
             return None
-        bb_msg.centroid.x = map_point.point.x
-        bb_msg.centroid.y = map_point.point.y
-        bb_msg.centroid.z = map_point.point.z
+        map_point : Point
+        bb_msg.centroid.x = map_point.x
+        bb_msg.centroid.y = map_point.y
+        bb_msg.centroid.z = map_point.z
         #bounding box width and height in world coordinates
         width, length = self.get_width_length_in_world_coordinates(x1, y1, x2, y2, bb_msg.centroid.z)
         bb_msg.width = width
@@ -215,15 +212,13 @@ class ObjectDetector:
         x_pos = ((x_pix - self.cx_d) * z_pos) / self.fx_d
         y_pos = ((y_pix - self.cy_d) * z_pos) / self.fy_d
         #create a point in camera frame
-        camera_point = PointStamped()
-        camera_point.header.stamp = rospy.Time.now()
-        camera_point.header.frame_id = "camera_frame"
-        camera_point.point.x = x_pos
-        camera_point.point.y = y_pos
-        camera_point.point.z = z_pos
+        camera_point = Point()
+        camera_point.x = x_pos
+        camera_point.y = y_pos
+        camera_point.z = z_pos
         return camera_point
          
-    def get_point_wrt_base_link(self, camera_point):
+    def get_point_wrt_base_link(self, camera_point: Point):
         if camera_point is None:
             rospy.loginfo("Camera point is None")
             return None
@@ -242,29 +237,24 @@ class ObjectDetector:
         transformation_matrix = np.eye(4)
         transformation_matrix[:3, :3] = rotation_matrix
         transformation_matrix[:3, 3] = translation_vector
-        camera_point: PointStamped
-        camera_pt = np.array([camera_point.point.x, camera_point.point.y, camera_point.point.z, 1])
+        camera_pt = np.array([camera_point.x, camera_point.y, camera_point.z, 1])
         base_link_pt = np.dot(transformation_matrix, camera_pt)
-        base_link_point = PointStamped()
-        base_link_point.header.stamp = rospy.Time.now()
-        base_link_point.header.frame_id = "base_link"
-        base_link_point.point.x = base_link_pt[0]
-        base_link_point.point.y = base_link_pt[1]
-        base_link_point.point.z = base_link_pt[2]
+        base_link_point = Point()
+        base_link_point.x = base_link_pt[0]
+        base_link_point.y = base_link_pt[1]
+        base_link_point.z = base_link_pt[2]
         return base_link_point
     
     def get_point_wrt_map(self, base_link_point):
         if base_link_point is None:
             rospy.loginfo("Base link point is None")
             return None
-        base_link_pt = np.array([base_link_point.point.x, base_link_point.point.y, base_link_point.point.z, 1])
+        base_link_pt = np.array([base_link_point.x, base_link_point.y, base_link_point.z, 1])
         map_pt = np.dot(self.base_map_tf, base_link_pt)    
-        map_point = PointStamped()
-        map_point.header.stamp = rospy.Time.now()
-        map_point.header.frame_id = "map"
-        map_point.point.x = map_pt[0]
-        map_point.point.y = map_pt[1]
-        map_point.point.z = map_pt[2]     
+        map_point = Point()
+        map_point.x = map_pt[0]
+        map_point.y = map_pt[1]
+        map_point.z = map_pt[2]     
         return map_point
          
     def get_width_length_in_world_coordinates(self, x1, y1, x2, y2, z):
@@ -279,12 +269,10 @@ class ObjectDetector:
         #Bottom left point
         camera_point3 = self.get_point_wrt_camera_frame(x1, y2)
         map_point3 = self.get_point_wrt_map(self.get_point_wrt_base_link(camera_point3))
-        #Bottom right point
-        camera_point4 = self.get_point_wrt_camera_frame(x2, y2)
         #use depth of the center to have the bounding box in the same plane
-        point_TL = np.array([map_point1.point.x, map_point1.point.y, z])
-        point_TR = np.array([map_point2.point.x, map_point2.point.y, z])
-        point_BL = np.array([map_point3.point.x, map_point3.point.y, z])
+        point_TL = np.array([map_point1.x, map_point1.y, z])
+        point_TR = np.array([map_point2.x, map_point2.y, z])
+        point_BL = np.array([map_point3.x, map_point3.y, z])
         #point_BR = np.array([map_point4.point.x, map_point3.point.y, z])
         # Compute the Euclidean distance to get the width and length in meters
         width = np.linalg.norm(point_TL - point_TR)

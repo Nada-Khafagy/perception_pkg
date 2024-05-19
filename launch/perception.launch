@@ -23,7 +23,7 @@
     </include>
 
     <!-- Launch Object Detector Node -->
-    <!-- <include file="$(find perception_pkg)/launch/object_detector.launch" >
+    <include file="$(find perception_pkg)/launch/object_detector.launch" >
         <arg name="odom_topic_name" value="$(arg odom_topic_name)" />
         <arg name="image_rgb_topic_name" value="$(arg image_rgb_topic_name)" />
         <arg name="image_depth_topic_name" value="$(arg image_depth_topic_name)" />
@@ -32,5 +32,5 @@
         <arg name="resolution_y" value="$(arg resolution_y)" />
         <arg name="use_depth" value="$(arg use_depth)" />
         <arg name="use_less_classes" value="$(arg use_less_classes)" />
-    </include> -->
+    </include>
 </launch>
