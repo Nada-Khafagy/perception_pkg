@@ -7,18 +7,18 @@
   <arg name="image_rgb_topic_name" default="/image" />
   <arg name="image_depth_topic_name" default="/image_depth" />
 
-  <arg name="prespective_angle_x" default="60" />
+  <arg name="prespective_angle_x" default="80" />
   <arg name="resolution_x" default="960" />
   <arg name="resolution_y" default="480" />
-  <arg name="cam_to_veh_quat" default="[-0.7313537016190877, 4.1805272689068336e-07, 3.898404044640546e-07, 0.6819983600623476]" />
+  <arg name="cam_to_veh_quat" default="[-0.7163019434245739, 4.094489180573026e-07, 3.988674051801406e-07, 0.6977904598415284]" />
   <arg name="cam_to_veh_offset" default="[0.0, 0.3, 0.664]" />
   
   <arg name="image_color_threshold_min" default="235" />
-  <arg name="lane_line_min_length" default="75" />
+  <arg name="lane_line_min_length" default="30" />
   <arg name="lane_line_max_dist" default="50" /> <!-- max distance between lines to be considered part of the same lane -->
   <arg name="hough_threshold" default="25" />
   <arg name="hough_min_length" default="30" />
-  <arg name="hough_max_gap" default="5" />
+  <arg name="hough_max_gap" default="23" />
 
   <arg name="publish_lane_image" default="false" />
 

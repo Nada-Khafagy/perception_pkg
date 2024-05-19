@@ -42,7 +42,7 @@ class LaneDetection:
                                         np.minimum(resolution_x/resolution_y, resolution_y/resolution_x))
                 
         # Initialize a NumPy array to store extracted lines
-        self.lane_lines = np.zeros((1, 4), dtype=np.int32) 
+        self.lane_lines = np.ones((1, 4), dtype=np.int32) 
 
         # Initialize a NumPy array to store the transformation from camera -> vehicle frame
         self.cam_to_veh_transform = quaternion_matrix(quaternion=cam_to_veh_quat)
@@ -199,10 +199,10 @@ class LaneDetection:
         
         # Define the vertices of the region of interest
         roi_vertices = np.array([
-            [0, height//2],
+            [0, 3*height//5],
             [0, height],
             [width, height],
-            [width, height//2]
+            [width, 3*height//5]
         ], dtype=np.int32)
         
         # Convert the image to grayscale
@@ -223,11 +223,12 @@ class LaneDetection:
         lines = np.squeeze(lines) # Remove unnecessary 2nd dimension of length 1
 
         # Process detected lines to extract potential lane lines only
-        if lines is not None:
+        if (lines is not None) and (lines.ndim > 1):
             self.filter_lines(lines)
 
         # Draw the detected lines on the original image if processed image is required
         if self.publish_lane_image:
+            # self.lane_lines = lines
             img = self.draw_lines(img)
             return img
         
