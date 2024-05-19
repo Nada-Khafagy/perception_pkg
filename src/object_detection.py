@@ -2,6 +2,7 @@
 import rospy
 import numpy as np
 import cv2 
+from tf.transformations import quaternion_matrix
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from perception_pkg.msg import bounding_box,bounding_box_array
@@ -90,10 +91,16 @@ class ObjectDetector:
         x = msg.pose.pose.position.x
         y = msg.pose.pose.position.y
         z = msg.pose.pose.position.z
-        self.base_map_tf = np.array([[1, 0, 0, x],
-                                    [0, 1, 0, y],
-                                    [0, 0, 1, z],
-                                    [0, 0, 0, 1]])
+        #rotation components
+        q = msg.pose.pose.orientation
+        q = [q.x, q.y, q.z, q.w]
+        rotation_matrix = quaternion_matrix(q)
+        # Construct translation vector
+        translation_vector = np.array([x, y, z])
+        transformation_matrix = np.eye(4)
+        transformation_matrix[:3, :3] = rotation_matrix[:3, :3]
+        transformation_matrix[:3, 3] = translation_vector
+        self.base_map_tf = transformation_matrix
         self.car_pos_recieved = True
 
         
@@ -191,14 +198,15 @@ class ObjectDetector:
         camera_point = self.get_point_wrt_camera_frame(x, y)
         base_link_point = self.get_point_wrt_base_link(camera_point)
         map_point = self.get_point_wrt_map(base_link_point)
+        width, length = self.get_width_length_in_world_coordinates(x1, y1, x2, y2, self.depth_data[x, y])
+
         if map_point is None:
             return None
         map_point : Point
-        bb_msg.centroid.x = map_point.x
-        bb_msg.centroid.y = map_point.y
+        bb_msg.centroid.x = map_point.y
+        bb_msg.centroid.y = -map_point.x
         bb_msg.centroid.z = map_point.z
         #bounding box width and height in world coordinates
-        width, length = self.get_width_length_in_world_coordinates(x1, y1, x2, y2, bb_msg.centroid.z)
         bb_msg.width = width
         bb_msg.length = length
         return bb_msg
@@ -224,19 +232,21 @@ class ObjectDetector:
             return None
         #construct rotation matrix
         #rotation around the x-axes but not exactly 90deg, can be edited from coppeliasim but leave it for now
-        rotation_matrix = np.array([[ 1.00000000e+00, -6.28955030e-17,  7.25837783e-16],
-                                    [-7.28557455e-16, -8.71557427e-02,  9.96194698e-01],
-                                    [ 6.04764452e-19, -9.96194698e-01, -8.71557427e-02]])
+        
+        rotation_matrix = np.array([[ 0.9999999999993465, -1.1432298515079376e-06, 1.0256571239377271e-13],
+                                    [-2.992637125762684e-08, -0.026176948307961467, 0.9996573249755546],
+                                    [ -1.142838092505768e-06, -0.9996573249749013, -0.026176948307978565]])
         #translation components
-        tx = 1.9567680809018344e-16
-        ty = 0.3
-        tz = 0.6639999958276729
+        tx = 0
+        ty = 0.29999999999994387
+        tz = 0.6639999958276623
         # Construct translation vector
         translation_vector = np.array([tx, ty, tz])
         # Construct transformation matrix
         transformation_matrix = np.eye(4)
         transformation_matrix[:3, :3] = rotation_matrix
         transformation_matrix[:3, 3] = translation_vector
+        
         camera_pt = np.array([camera_point.x, camera_point.y, camera_point.z, 1])
         base_link_pt = np.dot(transformation_matrix, camera_pt)
         base_link_point = Point()
@@ -249,6 +259,7 @@ class ObjectDetector:
         if base_link_point is None:
             rospy.loginfo("Base link point is None")
             return None
+        
         base_link_pt = np.array([base_link_point.x, base_link_point.y, base_link_point.z, 1])
         map_pt = np.dot(self.base_map_tf, base_link_pt)    
         map_point = Point()
@@ -258,25 +269,30 @@ class ObjectDetector:
         return map_point
          
     def get_width_length_in_world_coordinates(self, x1, y1, x2, y2, z):
-        #the box coordinates in (left, top, right, bottom) format
-        #get 3D line points of the bounding box
-        #Top left point
-        camera_point1 = self.get_point_wrt_camera_frame(x1, y1)
-        map_point1 = self.get_point_wrt_map(self.get_point_wrt_base_link(camera_point1))
-        #Top right point
-        camera_point2 = self.get_point_wrt_camera_frame(x2, y1)
-        map_point2 = self.get_point_wrt_map(self.get_point_wrt_base_link(camera_point2))
-        #Bottom left point
-        camera_point3 = self.get_point_wrt_camera_frame(x1, y2)
-        map_point3 = self.get_point_wrt_map(self.get_point_wrt_base_link(camera_point3))
-        #use depth of the center to have the bounding box in the same plane
-        point_TL = np.array([map_point1.x, map_point1.y, z])
-        point_TR = np.array([map_point2.x, map_point2.y, z])
-        point_BL = np.array([map_point3.x, map_point3.y, z])
-        #point_BR = np.array([map_point4.point.x, map_point3.point.y, z])
+        # #the box coordinates in (left, top, right, bottom) format
+        # #get 3D line points of the bounding box
+        # #Top left point
+        # camera_point1 = self.get_point_wrt_camera_frame(x1, y1)
+        # map_point1 = self.get_point_wrt_map(self.get_point_wrt_base_link(camera_point1))
+        # #Top right point
+        # camera_point2 = self.get_point_wrt_camera_frame(x2, y1)
+        # map_point2 = self.get_point_wrt_map(self.get_point_wrt_base_link(camera_point2))
+        # #Bottom left point
+        # camera_point3 = self.get_point_wrt_camera_frame(x1, y2)
+        # map_point3 = self.get_point_wrt_map(self.get_point_wrt_base_link(camera_point3))
+        # #use depth of the center to have the bounding box in the same plane
+        # point_TL = np.array([map_point1.x, map_point1.y, map_point1.z])
+        # point_TR = np.array([map_point2.x, map_point2.y, map_point2.z])
+        # point_BL = np.array([map_point3.x, map_point3.y, map_point3.z])
+        # rospy.loginfo(f"TL: {point_TL}, TR: {point_TR}, BL: {point_BL}")
+        # #point_BR = np.array([map_point4.point.x, map_point3.point.y, z])
+        # # Compute the Euclidean distance to get the width and length in meters
+        # width = np.linalg.norm(point_TR - point_TL)
+        # length = np.linalg.norm(point_TL - point_BL)  
         # Compute the Euclidean distance to get the width and length in meters
-        width = np.linalg.norm(point_TL - point_TR)
-        length = np.linalg.norm(point_TL - point_BL)        
+        width = (x2-x1) * z / self.fx_d
+        length = (y2-y1) * z / self.fy_d   
+        
         return width, length
                           
     def cleanup(self):
