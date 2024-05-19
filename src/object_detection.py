@@ -62,7 +62,7 @@ class ObjectDetector:
         self.image_pub = rospy.Publisher('/detected_image', Image, queue_size=1)
         if self.use_depth:
             self.depth_sub = rospy.Subscriber(depth_topic_name, Image, self.depth_callback)
-            self.bb_pub = rospy.Publisher('/bounding_boxes', bounding_box_array, queue_size=1)
+            self.bb_pub = rospy.Publisher('/object_detection/bounding_boxes', bounding_box_array, queue_size=1)
         #self.centroid_pub = rospy.Publisher('/centroid', PointStamped, queue_size=1)
         self.image_sub = rospy.Subscriber(img_topic_name, Image, self.image_callback)
         self.odom_sub = rospy.Subscriber(odom_topic_name, Odometry, self.odom_callback)
