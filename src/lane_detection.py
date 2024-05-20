@@ -200,8 +200,8 @@ class LaneDetection:
         # Define the vertices of the region of interest
         roi_vertices = np.array([
             [0, 3*height//5],
-            [0, height],
-            [width, height],
+            [0, 9*height//10],
+            [width, 9*height//10],
             [width, 3*height//5]
         ], dtype=np.int32)
         
@@ -223,12 +223,12 @@ class LaneDetection:
         lines = np.squeeze(lines) # Remove unnecessary 2nd dimension of length 1
 
         # Process detected lines to extract potential lane lines only
-        if (lines is not None) and (lines.ndim > 1):
-            self.filter_lines(lines)
+        # if (lines is not None) and (lines.ndim > 1):
+        #     self.filter_lines(lines)
+        self.lane_lines = lines
 
         # Draw the detected lines on the original image if processed image is required
         if self.publish_lane_image:
-            # self.lane_lines = lines
             img = self.draw_lines(img)
             return img
         
@@ -275,7 +275,7 @@ class LaneDetection:
         depth = np.frombuffer(depth_image, dtype=np.float32).reshape((depth_image.shape[0], depth_image.shape[1]))
     
         # Get coordinates of all points in lane markers (in a flateneed array)
-        if self.lane_lines.shape[0] > 0:
+        if self.lane_lines.ndim > 1 and self.lane_lines.shape[0] > 0:
             lines = np.empty((self.lane_lines.shape[0] * self.lane_lines.shape[1], ), dtype=np.float32)
             for i, lane_line in enumerate(self.lane_lines):
                 # Get point coordinates and transform (u, v) coordinates into (x_img, y_img) in pixels
