@@ -184,10 +184,15 @@ class LaneDetection:
     # Method to draw detected lines on the image
     def draw_lines(self, image):
         # Iterate over the detected lines
-        for line in self.lane_lines:
-            # Get the coordinates of line and draw onto image
-            x1, y1, x2, y2 = line
-            cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        if self.lane_lines.ndim > 0:
+            for line in self.lane_lines:
+                # Get the coordinates of line and draw onto image
+                try :
+                    if line is not None and len(line) == 4:
+                        x1, y1, x2, y2 = line
+                        cv2.line(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                except TypeError:
+                    rospy.loginfo(f"Error: {line} is not iterable")
 
         return image
 
@@ -227,6 +232,7 @@ class LaneDetection:
         #     self.filter_lines(lines)
         self.lane_lines = lines
 
+    
         # Draw the detected lines on the original image if processed image is required
         if self.publish_lane_image:
             img = self.draw_lines(img)
