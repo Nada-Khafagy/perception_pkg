@@ -151,8 +151,10 @@ class ObjectDetector:
             if self.use_depth:
                 bbs_msg = bounding_box_array()
                 bbs_msg.header.stamp = rospy.Time.now()
-                bbs_msg.header.frame_id = 'bounding_boxes'   
+                bbs_msg.header.frame_id = 'bounding_boxes' 
+                  
             for bbox in reversed(pred_boxes):
+                
                 c, conf, id = int(bbox.cls), float(bbox.conf) , None if bbox.id is None else int(bbox.id.item())
                 name = ("" if id is None else f"id:{id} ") + names[c] 
                 if self.use_less_classes and name not in self.compact_classes_names:
@@ -160,11 +162,13 @@ class ObjectDetector:
                 box = bbox.xyxyxyxy.reshape(-1, 4, 2).squeeze() if is_obb else bbox.xyxy.squeeze()
                 text = (f"{name} {conf:.2f}" if conf else name) #you can change it to any other custom text
                 annotator.box_label(box, text, color=colors(c, True), rotated=is_obb)
+                
                 # Draw centroid
                 centroid_x = (box[0] + box[2]) / 2
                 centroid_y = (box[1] + box[3]) / 2
                 centroid = (int(centroid_x), int(centroid_y))
                 annotator.draw_specific_points([centroid],indices=[0])
+                
                 #only create msg with data in 3d if needed
                 if self.use_depth:
                     bb_msg = self.create_bounding_box_msg(bbox, results.names)

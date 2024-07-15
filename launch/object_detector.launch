@@ -14,7 +14,7 @@
     <arg name="use_less_classes" default="false" />
     <arg name="use_tracking" default="false" />
     
-    <arg name="confidence_threshold" default="0.6" />
+    <arg name="confidence_threshold" default="0.5" />
     <arg name="iou_threshold" default="0.6" />
     <arg name="weights_path" default="/model/best.pt" />
 
