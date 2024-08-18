@@ -14,13 +14,11 @@
   <arg name="cam_to_veh_offset" default="[0.0, 0.3, 0.664]" />
   
   <arg name="image_color_threshold_min" default="235" />
-  <arg name="lane_line_min_length" default="30" />
-  <arg name="lane_line_max_dist" default="50" /> <!-- max distance between lines to be considered part of the same lane -->
   <arg name="hough_threshold" default="25" />
   <arg name="hough_min_length" default="45" />
   <arg name="hough_max_gap" default="5" />
 
-  <arg name="publish_lane_image" default="true" />
+  <arg name="publish_lane_image" default="false" />
 
   <!-- Launch Lane Detector Node -->
   <node pkg="perception_pkg" type="lane_detection.py" name="lane_detection" output="screen">
@@ -35,8 +33,6 @@
     <rosparam param="cam_to_veh_offset" subst_value="True">$(arg cam_to_veh_offset) </rosparam>
 
     <param name="image_color_threshold_min" value="$(arg image_color_threshold_min)" />
-    <param name="lane_line_min_length" value="$(arg lane_line_min_length)" />
-    <param name="lane_line_max_dist" value="$(arg lane_line_max_dist)" />
     <param name="hough_threshold" value="$(arg hough_threshold)" />
     <param name="hough_min_length" value="$(arg hough_min_length)" />
     <param name="hough_max_gap" value="$(arg hough_max_gap)" />
