@@ -49,10 +49,10 @@ The **perception_pkg** contains all nodes related to allowing the vehicle to per
 * `weights_path` : The path to the weights file which is the ".pt" output file from training the yolo model.
 
 #### Known Issues and Possible Solutions:
-* **Issue**: low mAP 
-* **Solution**: increase the number of annotation for certain classes (increase dataset).
-* **Issue**: high inference time
-* **Solution**: for now i think using a better Nvidia gpu would be a good solution :) 
+* **Issue**: Low mAP.
+* **Solution**: Increase the number of annotations for certain classes i.e. increase dataset.
+* **Issue**: High inference time.
+* **Solution**: Using a better NVIDIA GPU as the node already uses the smallest YOLOv8 model. 
 
 
 <br></br>
@@ -64,10 +64,10 @@ pip install -r requirements.txt
 - Then Build the package (put an empty folder called include if building caused an issue).
 
 ## Camera specification in Coppeliasim
-- frequency = 20 Hz
-- near/far plane = [0.01, 30] 
-- perspective angle = 85.0deg
-- resolution 960x480
+- Frequency: 20 Hz
+- Near/far plane: [0.01, 30] (meters)
+- Perspective angle: 80.0 (degrees)
+- Resolution: 960x480
 
 ## Dataset
 - Roboflow: https://universe.roboflow.com/autocomp/ccc123iii123ttt123yyy
